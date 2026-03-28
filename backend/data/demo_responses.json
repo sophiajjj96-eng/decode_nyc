@@ -1,0 +1,52 @@
+[
+  {
+    "id": "demo_q1_housing_eligibility",
+    "question_patterns": [
+      "lose my apartment",
+      "lose apartment",
+      "losing my apartment",
+      "losing apartment",
+      "losing my home",
+      "lose my home",
+      "need help finding shelter",
+      "need shelter",
+      "eligible for housing support",
+      "eligible for housing",
+      "housing support",
+      "about to lose my apartment",
+      "about to lose apartment"
+    ],
+    "required_keywords": 2,
+    "response": "**Your Situation**\n\nI understand you're going through a really difficult time. The stress of potentially losing your home is overwhelming, and navigating the housing system can feel impossible. Let me help you understand how the city decides who gets homelessness prevention services.\n\n**The Algorithm: Homebase Risk Assessment**\n\nWhen you apply for homelessness prevention services through Homebase (run by the Department of Homeless Services), the city uses something called the Risk Assessment Questionnaire. This is a scoring algorithm that evaluates your situation based on several factors.\n\n## What DHS Considers\n\n- **Prior DHS Contact** 🔴 **High Impact**\n- **Length of Current Housing** 🔴 **High Impact**  \n- **Income** 🟡 **Medium Impact**\n- **Employment Status** ⚪ **Considered**\n- **Family Size** 🟡 **Medium Impact**\n- **Reason for Housing Loss** ⚪ **Considered**\n\n## How It Works\n\nYou'll answer questions about your housing history, income, family situation, and whether you've needed DHS services before. The algorithm produces a risk score. Caseworkers then use that score to recommend whether you should receive services like rental assistance, mediation with landlords, or connections to legal aid.\n\n_[Visual flowchart showing the decision tree appears below]_\n\n## ⚠️ Known Fairness Issues\n\n- **Prior DHS contact lowers your score** — the algorithm penalizes people for having needed help before. This is a documented fairness problem with the system.\n- **No public documentation on exact scoring thresholds** — residents don't know what score they need to qualify\n- **Limited formal appeal process** if your score is too low\n- **Trained on historical DHS data from 2012** — the algorithm learned from past patterns of denial, which may perpetuate those patterns\n\n## What You Can Do Now\n\n✓ **Apply to Homebase anyway** — a caseworker can advocate for you even if the algorithm gives you a low score\n\n✓ **Contact the Legal Aid Society** for eviction protection and legal representation\n\n✓ **Call 311 for Emergency Rental Assistance** — this program does NOT use the RAQ scoring algorithm\n\n✓ **Document your situation** — gather any eviction notices, lease documents, and proof of income before applying\n\n```mermaid\nflowchart TD\n    Start[Apply to Homebase] --> Questions[Answer Risk Assessment Questions]\n    Questions --> PriorDHS{Prior DHS Contact?}\n    PriorDHS -->|Yes| LowerScore[Score Reduced]\n    PriorDHS -->|No| CheckIncome{Income Level}\n    LowerScore --> CheckIncome\n    CheckIncome -->|Very Low| HighRisk[High Risk Score]\n    CheckIncome -->|Low/Moderate| MedRisk[Medium Risk Score]\n    CheckIncome -->|Stable| LowRisk[Low Risk Score]\n    HighRisk --> Caseworker[Caseworker Review]\n    MedRisk --> Caseworker\n    LowRisk --> Caseworker\n    Caseworker -->|Approved| Services[Rental Assistance, Legal Aid, Mediation]\n    Caseworker -->|Denied| Appeal[Limited Appeal Options]\n    \n    style PriorDHS fill:#ff9999\n    style LowerScore fill:#ff9999\n    style CheckIncome fill:#ffcc99\n    style Services fill:#99ff99\n    style Appeal fill:#ff9999\n```",
+    "followup_questions": [
+      "Is the algorithm fair to people who've needed help before?",
+      "Can I appeal if my score is too low?",
+      "What if my income situation has changed?",
+      "How long does the Homebase application process take?"
+    ]
+  },
+  {
+    "id": "demo_q2_prior_dhs_contact",
+    "question_patterns": [
+      "previously in the DHS shelter system",
+      "previously in DHS",
+      "was in shelter",
+      "was in the shelter",
+      "DHS shelter system",
+      "prior DHS contact",
+      "used DHS before",
+      "been in shelter before",
+      "was in DHS shelter",
+      "used DHS services before",
+      "needed DHS help before"
+    ],
+    "required_keywords": 2,
+    "response": "**The Prior Contact Penalty**\n\nThis is one of the most problematic aspects of the Homebase Risk Assessment algorithm, and I want to be direct with you about it.\n\n**Because you've used DHS services before, the system actually lowers your score.** This is a known fairness issue — the algorithm penalizes people for having needed help in the past.\n\n## How This Works\n\nThe algorithm treats \"prior DHS contact\" as a 🔴 **High Impact** factor. When the system sees that you've been in the shelter system before, it reduces your risk score. The logic is that people with prior contact are supposedly \"lower risk\" for homelessness.\n\nBut here's the problem: **This creates a circular trap.** The people who most needed help before are the same people who likely need help now. Yet the algorithm makes it harder for them to qualify.\n\n## Why This Is Unfair\n\nThe Homebase algorithm was trained on historical DHS data from 2012. That means it learned from the city's past decisions about who got services and who didn't. If those past decisions had bias — and research suggests they did — the algorithm perpetuates that bias forward.\n\nPeople who've been through the shelter system already know how to navigate it. They're not \"low risk\" — they're experienced survivors who deserve support, not penalties.\n\n## ⚠️ Known Fairness Issues\n\n- **Prior DHS contact lowers your score** — documented fairness problem\n- **No appeals process specifically for algorithm scores** — you can't challenge the score itself\n- **No transparency on weights** — DHS doesn't publish how heavily prior contact affects your final score\n- **Trained on biased historical data** — the 2012 training data reflects years of unequal access to services\n\n## What You Can Do\n\n✓ **Apply anyway** — caseworkers have discretion to override algorithm recommendations\n\n✓ **Explain your situation directly** — tell the caseworker why you need services now, regardless of past history\n\n✓ **Document any changes** — new income loss, health issues, family circumstances that differ from before\n\n✓ **Contact Legal Aid Society** — they can advocate on your behalf and know how to navigate the Homebase system\n\n✓ **File a complaint** if denied — document the denial and ask for a supervisor review\n\n## Your Rights\n\nYou have the right to know why you're being scored and what factors were used. You can request to see your file and ask questions about the decision process.\n\n```mermaid\nflowchart TD\n    Start[Prior DHS Contact Detected] --> Penalty[Risk Score Reduced]\n    Penalty --> Historical[Based on 2012 Training Data]\n    Historical --> Bias{Contains Historical Bias?}\n    Bias -->|Yes| Perpetuate[Bias Perpetuated Forward]\n    Bias -->|No| Score[Final Risk Score]\n    Perpetuate --> Score\n    Score --> Decision{Score Threshold}\n    Decision -->|Below| Denied[Services Denied]\n    Decision -->|Above| Approved[Services Approved]\n    Denied --> Appeal[Limited Appeal Process]\n    Approved --> Services[Rental Assistance, Mediation, Legal Aid]\n    \n    style Penalty fill:#ff9999\n    style Perpetuate fill:#ff9999\n    style Denied fill:#ff9999\n    style Appeal fill:#ffcc99\n    style Services fill:#99ff99\n```",
+    "followup_questions": [
+      "Can I see my actual risk score?",
+      "What if my situation now is different from before?",
+      "Are there other housing programs that don't use this algorithm?",
+      "Who can I contact if I think the decision was wrong?"
+    ]
+  }
+]

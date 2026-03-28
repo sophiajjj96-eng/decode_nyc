@@ -71,6 +71,11 @@ flowchart TD
  * @param {HTMLElement} container - Container element to render into
  */
 export async function renderFlowchart(algorithmId, container) {
+  if (!container) {
+    console.error('[FLOWCHART] No container provided');
+    return;
+  }
+  
   const definition = FLOWCHART_DEFINITIONS[algorithmId];
   
   if (!definition) {
@@ -78,41 +83,53 @@ export async function renderFlowchart(algorithmId, container) {
     return;
   }
   
-  // Load mermaid.js if not already loaded
-  if (!window.mermaid) {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    script.type = 'module';
-    document.head.appendChild(script);
-    
-    // Wait for mermaid to load
-    await new Promise(resolve => {
-      script.onload = resolve;
-    });
-    
-    // Initialize mermaid
-    mermaid.initialize({ 
-      startOnLoad: false,
-      theme: 'neutral',
-      flowchart: {
-        useMaxWidth: true,
-        htmlLabels: true,
-        curve: 'basis'
-      }
-    });
-  }
-  
-  // Create a unique ID for this chart
-  const chartId = `flowchart-${algorithmId}-${Date.now()}`;
-  container.innerHTML = `<div class="mermaid" id="${chartId}">${definition}</div>`;
-  
-  // Render the chart
   try {
-    await mermaid.run({
-      nodes: [container.querySelector(`#${chartId}`)]
-    });
+    // Load mermaid.js if not already loaded
+    if (!window.mermaid) {
+      const script = document.createElement('script');
+      // Use UMD build that exposes window.mermaid
+      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+      script.type = 'text/javascript';
+      document.head.appendChild(script);
+      
+      // Wait for mermaid to load
+      await new Promise((resolve, reject) => {
+        script.onload = () => {
+          if (window.mermaid) {
+            resolve();
+          } else {
+            reject(new Error('Mermaid loaded but not available on window'));
+          }
+        };
+        script.onerror = () => reject(new Error('Failed to load mermaid.js'));
+        setTimeout(() => reject(new Error('Mermaid load timeout')), 10000);
+      });
+      
+      // Initialize mermaid
+      window.mermaid.initialize({ 
+        startOnLoad: false,
+        theme: 'neutral',
+        flowchart: {
+          useMaxWidth: true,
+          htmlLabels: true,
+          curve: 'basis'
+        }
+      });
+    }
+    
+    // Create a unique ID for this chart
+    const chartId = `flowchart-${algorithmId}-${Date.now()}`;
+    container.innerHTML = `<div class="mermaid" id="${chartId}">${definition}</div>`;
+    
+    // Render the chart
+    const chartElement = container.querySelector(`#${chartId}`);
+    if (chartElement) {
+      await window.mermaid.run({
+        nodes: [chartElement]
+      });
+    }
   } catch (error) {
-    console.error('Mermaid rendering error:', error);
+    console.error('[FLOWCHART] Rendering error:', error);
     container.innerHTML = '<p class="flowchart-error">Unable to render flowchart.</p>';
   }
 }
@@ -122,7 +139,11 @@ export async function renderFlowchart(algorithmId, container) {
  * @param {HTMLElement} messageElement - The message bubble element
  * @param {string} messageText - The message text content
  */
-export function injectFlowchartIfNeeded(messageElement, messageText) {
+export async function injectFlowchartIfNeeded(messageElement, messageText) {
+  if (!messageElement || !messageText) {
+    return;
+  }
+  
   const lowerText = messageText.toLowerCase();
   
   // Detect algorithm keywords
@@ -147,14 +168,21 @@ export function injectFlowchartIfNeeded(messageElement, messageText) {
     return;
   }
   
+  // Find bubble element
+  const bubble = messageElement.querySelector('.bubble');
+  if (!bubble) {
+    console.error('[FLOWCHART] No bubble element found in message');
+    return;
+  }
+  
   // Create flowchart container
   const flowchartContainer = document.createElement('div');
   flowchartContainer.className = 'flowchart-container';
   flowchartContainer.innerHTML = '<div class="flowchart-title">How This Algorithm Works</div><div class="flowchart-content"></div>';
   
   const contentDiv = flowchartContainer.querySelector('.flowchart-content');
-  messageElement.querySelector('.bubble').appendChild(flowchartContainer);
+  bubble.appendChild(flowchartContainer);
   
   // Render flowchart
-  renderFlowchart(algorithmId, contentDiv);
+  await renderFlowchart(algorithmId, contentDiv);
 }

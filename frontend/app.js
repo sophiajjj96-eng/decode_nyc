@@ -9,6 +9,7 @@ import { t, getFlag, getSupportedLanguages } from "./translations.js";
 
 // Language state
 let currentLanguage = localStorage.getItem('decodenyc-language') || 'en';
+let sessionLanguage = currentLanguage; // Immutable language for current chat session
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -25,7 +26,7 @@ let empty = document.getElementById('empty');
 
 // WebSocket state
 const userId = "civic-user";
-const sessionId = "session-" + Math.random().toString(36).substring(7);
+let sessionId = "session-" + Math.random().toString(36).substring(7);
 let websocket = null;
 let welcomeReceived = false;
 
@@ -175,11 +176,6 @@ function setLanguage(lang) {
   
   // Apply translations
   applyTranslations();
-  
-  // If connected, restart conversation to apply language
-  if (websocket && websocket.readyState === WebSocket.OPEN) {
-    resetConversation();
-  }
 }
 
 // Language selector event handlers
@@ -198,7 +194,15 @@ document.querySelectorAll('.language-option').forEach(option => {
   option.addEventListener('click', (e) => {
     e.stopPropagation();
     const lang = option.dataset.lang;
-    setLanguage(lang);
+    
+    // If language is different from current session language, start new conversation
+    if (lang !== sessionLanguage) {
+      // Update the language setting
+      setLanguage(lang);
+      // Start new conversation with the new language
+      resetConversation();
+    }
+    
     languageDropdown.classList.add('hidden');
   });
 });
@@ -503,11 +507,19 @@ function appendMessage(role, text, streaming = false) {
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (streaming ? ' streaming' : '');
   
+  // Ensure text is a string
+  const textContent = String(text || '');
+  
   // Render markdown for bot messages if marked.js is available
-  if (role === 'bot' && window.marked) {
-    bubble.innerHTML = marked.parse(text);
+  if (role === 'bot' && window.marked && textContent) {
+    try {
+      bubble.innerHTML = marked.parse(textContent);
+    } catch (err) {
+      console.error('[MARKDOWN] Parse error:', err);
+      bubble.textContent = textContent;
+    }
   } else {
-    bubble.textContent = text;
+    bubble.textContent = textContent;
   }
   
   row.appendChild(avatar);
@@ -585,8 +597,12 @@ function renderAssistantResponse(text) {
   
   // Detect algorithm explanations and inject flowchart
   if (currentBubbleElement) {
-    setTimeout(() => {
-      injectFlowchartIfNeeded(currentBubbleElement, text);
+    setTimeout(async () => {
+      try {
+        await injectFlowchartIfNeeded(currentBubbleElement, text);
+      } catch (error) {
+        console.error('[FLOWCHART] Injection error:', error);
+      }
     }, 500);
   }
 }
@@ -634,13 +650,38 @@ function showTyping() {
 }
 
 function updateBubble(element, text, streaming = false) {
+  if (!element) {
+    console.error('[RENDER] updateBubble called with null element');
+    return;
+  }
+  
   const bubble = element.querySelector('.bubble');
+  if (!bubble) {
+    console.error('[RENDER] No bubble element found');
+    return;
+  }
+  
+  // Ensure text is a string
+  const textContent = String(text || '');
+  
+  // Preserve flowchart container if it exists
+  const existingFlowchart = bubble.querySelector('.flowchart-container');
   
   // Render markdown if available and element is a bot message
-  if (element.classList.contains('bot') && window.marked) {
-    bubble.innerHTML = marked.parse(text);
+  if (element.classList.contains('bot') && window.marked && textContent) {
+    try {
+      bubble.innerHTML = marked.parse(textContent);
+      
+      // Re-append flowchart if it was present
+      if (existingFlowchart) {
+        bubble.appendChild(existingFlowchart);
+      }
+    } catch (err) {
+      console.error('[MARKDOWN] Parse error:', err);
+      bubble.textContent = textContent;
+    }
   } else {
-    bubble.textContent = text;
+    bubble.textContent = textContent;
   }
   
   bubble.className = 'bubble' + (streaming ? ' streaming' : '');
@@ -650,12 +691,12 @@ function updateBubble(element, text, streaming = false) {
 // WebSocket connection
 function connectWebsocket() {
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = wsProtocol + "//" + window.location.host + "/ws/" + userId + "/" + sessionId + "?language=" + currentLanguage;
+  const wsUrl = wsProtocol + "//" + window.location.host + "/ws/" + userId + "/" + sessionId + "?language=" + sessionLanguage;
   
   websocket = new WebSocket(wsUrl);
   
   websocket.onopen = function() {
-    console.log("[WEBSOCKET] Connected with language:", currentLanguage);
+    console.log("[WEBSOCKET] Connected with language:", sessionLanguage);
     setStatus('connected');
   };
   
@@ -714,10 +755,18 @@ function handleADKEvent(event) {
       speechRevealInterval = null;
     }
     if (currentBubbleElement) {
-      updateBubble(currentBubbleElement, currentBubbleElement.querySelector('.bubble').textContent, false);
+      // Just remove streaming class without re-rendering to preserve flowcharts
+      const bubble = currentBubbleElement.querySelector('.bubble');
+      if (bubble) {
+        bubble.classList.remove('streaming');
+      }
     }
     if (currentOutputTranscriptionElement) {
-      updateBubble(currentOutputTranscriptionElement, currentOutputTranscriptionElement.querySelector('.bubble').textContent, false);
+      // Just remove streaming class without re-rendering to preserve flowcharts
+      const bubble = currentOutputTranscriptionElement.querySelector('.bubble');
+      if (bubble) {
+        bubble.classList.remove('streaming');
+      }
     }
     
     // Only stop recording for microphone mode, not voice mode
@@ -897,14 +946,18 @@ function handleADKEvent(event) {
           currentMessageId = Math.random().toString(36).substring(7);
           currentBubbleElement = appendMessage('bot', part.text, true);
         } else {
-          const existingText = currentBubbleElement.querySelector('.bubble').textContent;
+          const bubble = currentBubbleElement.querySelector('.bubble');
+          const existingText = bubble ? bubble.textContent : '';
           updateBubble(currentBubbleElement, existingText + part.text, true);
         }
         
         // Track complete text messages
-        if (event.turnComplete) {
-          const finalText = currentBubbleElement.querySelector('.bubble').textContent;
-          renderAssistantResponse(finalText);
+        if (event.turnComplete && currentBubbleElement) {
+          const bubble = currentBubbleElement.querySelector('.bubble');
+          const finalText = bubble ? bubble.textContent : '';
+          if (finalText) {
+            renderAssistantResponse(finalText);
+          }
         }
       }
     }
@@ -1138,16 +1191,28 @@ function resetConversation() {
   // Generate new session ID
   sessionId = "session-" + Math.random().toString(36).substring(7);
   
+  // Lock in the current language for this new session
+  sessionLanguage = currentLanguage;
+  
   // Reconnect with new session
   connectWebsocket();
   
-  console.log('[CONVERSATION] Reset to new conversation with sessionId:', sessionId);
+  console.log('[CONVERSATION] Reset to new conversation with sessionId:', sessionId, 'language:', sessionLanguage);
 }
 
 // ========================================
 // Initialize
 // ========================================
+// Set initial UI state for language
+currentFlag.textContent = getFlag(currentLanguage);
+document.querySelectorAll('.language-option').forEach(option => {
+  if (option.dataset.lang === currentLanguage) {
+    option.classList.add('active');
+  } else {
+    option.classList.remove('active');
+  }
+});
+
 applyTranslations();
-setLanguage(currentLanguage);
 connectWebsocket();
 inputEl.focus();

@@ -331,11 +331,12 @@ header h1 {
 
 /* live transcript bubble — streams in word by word */
 .bubble.streaming { 
-  min-width: 60%;
   width: 72%;
   opacity: 0.85; 
   border-color: var(--accent-border);
   box-shadow: 0 0 12px rgba(212, 233, 247, 0.3);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ── Typing indicator ── */

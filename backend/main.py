@@ -37,6 +37,7 @@ from civic_agent.conversation_tool import (  # noqa: E402
     generate_followup_questions,
 )
 from civic_agent.friction_detector import analyze_friction, aggregate_friction_stats  # noqa: E402
+from civic_agent.demo_interceptor import get_demo_response  # noqa: E402
 from api.friction_report import router as friction_router  # noqa: E402
 
 # Configure logging
@@ -367,15 +368,26 @@ async def websocket_endpoint(
     
     conv_state = conversation_states[state_key]
     
-    # Update language if it changed
-    if conv_state.language != language:
-        conv_state.language = language
-        logger.debug(f"Updated language to {language} for {state_key}")
-    
-    # Track if welcome was sent in this WebSocket connection
-    welcome_sent = False
+    # Send welcome message if this is a new conversation
+    if not conv_state.history:
+        logger.debug("New conversation detected, sending welcome message")
+        welcome_data = get_welcome_message(conv_state.language)
+        welcome_message = {
+            "type": "welcome",
+            "message": welcome_data["message"],
+            "prompts": welcome_data["prompts"]
+        }
+        await websocket.send_text(json.dumps(welcome_message))
+        logger.debug(f"Sent welcome message with {len(welcome_data['prompts'])} prompts")
 
     live_request_queue = LiveRequestQueue()
+    
+    # Shared state for demo interception
+    demo_state = {
+        "question": None,
+        "response_data": None,
+        "response_sent": False
+    }
 
     # ========================================
     # Phase 3: Active Session (concurrent bidirectional communication)
@@ -439,6 +451,16 @@ async def websocket_endpoint(
                         logger.debug(f"Resolved '{user_text}' to '{resolved_text}'")
                         user_text = resolved_text
                     
+                    # Check for demo question and store for interception
+                    demo_response_data = get_demo_response(user_text)
+                    demo_state["question"] = user_text
+                    demo_state["response_data"] = demo_response_data
+                    demo_state["response_sent"] = False
+                    
+                    if demo_response_data:
+                        logger.info(f"Demo question detected: {demo_response_data['demo_id']}")
+                    
+                    # Always send to AI (we'll intercept the response)
                     content = types.Content(
                         parts=[types.Part(text=user_text)]
                     )
@@ -451,20 +473,6 @@ async def websocket_endpoint(
             f"Starting run_live with user_id={user_id}, session_id={session_id}"
         )
         
-        # Send welcome message if this is a new conversation and not already sent
-        nonlocal welcome_sent
-        if not conv_state.history and not welcome_sent:
-            logger.debug("New conversation detected, sending welcome message")
-            welcome_data = get_welcome_message(conv_state.language)
-            welcome_message = {
-                "type": "welcome",
-                "message": welcome_data["message"],
-                "prompts": welcome_data["prompts"]
-            }
-            await websocket.send_text(json.dumps(welcome_message))
-            welcome_sent = True
-            logger.debug(f"Sent welcome message with {len(welcome_data['prompts'])} prompts")
-        
         # Track assistant response text for follow-up generation
         turn_response_text = ""
         
@@ -474,11 +482,70 @@ async def websocket_endpoint(
             live_request_queue=live_request_queue,
             run_config=run_config,
         ):
-            # Track assistant messages in conversation state
+            # Check if demo interception is needed
+            if demo_state["response_data"] and not demo_state["response_sent"]:
+                demo_data = demo_state["response_data"]
+                logger.info(f"Intercepting with demo response: {demo_data['demo_id']}")
+                
+                # Send hard-coded response in ADK-compatible format
+                response_text = demo_data["response"]
+                chunk_size = 50
+                
+                for i in range(0, len(response_text), chunk_size):
+                    chunk = response_text[i:i + chunk_size]
+                    # Use ADK event format so frontend handles it correctly
+                    content_event = {
+                        "content": {
+                            "parts": [{"text": chunk}]
+                        },
+                        "partial": True,
+                        "invocationId": "demo",
+                        "author": "model",
+                        "actions": [],
+                        "id": f"demo-{i}",
+                        "timestamp": ""
+                    }
+                    await websocket.send_text(json.dumps(content_event))
+                    await asyncio.sleep(0.02)
+                
+                # Track in conversation state
+                conv_state.add_message("assistant", response_text)
+                
+                # Send turn complete
+                complete_event = {"turnComplete": True}
+                await websocket.send_text(json.dumps(complete_event))
+                
+                # Send hard-coded follow-up questions
+                if demo_data.get("followup_questions"):
+                    followup_message = {
+                        "type": "suggested_prompts",
+                        "prompts": demo_data["followup_questions"]
+                    }
+                    await websocket.send_text(json.dumps(followup_message))
+                    logger.debug(f"Sent {len(demo_data['followup_questions'])} demo follow-ups")
+                
+                # Mark as sent
+                demo_state["response_sent"] = True
+                
+                # Skip this AI event
+                continue
+            
+            # If demo response was sent, suppress remaining AI events until turn complete
+            if demo_state["response_sent"]:
+                if hasattr(event, "turn_complete") and event.turn_complete:
+                    logger.debug("AI turn complete after demo, resetting state")
+                    demo_state["question"] = None
+                    demo_state["response_data"] = None
+                    demo_state["response_sent"] = False
+                continue
+            
+            # Normal AI flow - track assistant messages in conversation state
             if hasattr(event, "content") and event.content and hasattr(event.content, "parts"):
                 if event.content.parts:
                     for part in event.content.parts:
-                        if hasattr(part, "text") and part.text:
+                        # Filter out thought parts
+                        is_thought = hasattr(part, "thought") and part.thought
+                        if hasattr(part, "text") and part.text and not is_thought:
                             turn_response_text += part.text
                             conv_state.add_message("assistant", part.text)
                             logger.debug(f"Tracked assistant message: {part.text[:100]}...")
@@ -488,29 +555,30 @@ async def websocket_endpoint(
             await websocket.send_text(event_json)
             
             # Generate follow-up questions when turn completes
-            if hasattr(event, "turn_complete") and event.turn_complete and turn_response_text:
-                logger.debug("Turn completed, generating follow-up questions")
-                
-                # Convert conversation state to format expected by generator
-                history_for_followup = [
-                    {"role": msg.role, "text": msg.text}
-                    for msg in conv_state.history[-10:]
-                ]
-                
-                followup_questions = await generate_followup_questions(
-                    history_for_followup, 
-                    conv_state.language
-                )
-                
-                if followup_questions:
-                    logger.debug(f"Generated {len(followup_questions)} follow-up questions")
-                    followup_message = {
-                        "type": "suggested_prompts",
-                        "prompts": followup_questions
-                    }
-                    await websocket.send_text(json.dumps(followup_message))
-                else:
-                    logger.debug("No follow-up questions generated")
+            if hasattr(event, "turn_complete") and event.turn_complete:
+                if turn_response_text:
+                    logger.debug("Turn completed, generating follow-up questions")
+                    
+                    # Convert conversation state to format expected by generator
+                    history_for_followup = [
+                        {"role": msg.role, "text": msg.text}
+                        for msg in conv_state.history[-10:]
+                    ]
+                    
+                    followup_questions = await generate_followup_questions(
+                        history_for_followup, 
+                        conv_state.language
+                    )
+                    
+                    if followup_questions:
+                        logger.debug(f"Generated {len(followup_questions)} follow-up questions")
+                        followup_message = {
+                            "type": "suggested_prompts",
+                            "prompts": followup_questions
+                        }
+                        await websocket.send_text(json.dumps(followup_message))
+                    else:
+                        logger.debug("No follow-up questions generated")
                 
                 # Reset for next turn
                 turn_response_text = ""
