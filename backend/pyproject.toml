@@ -1,7 +1,7 @@
 [project]
-name = "algorithm-explained-backend"
+name = "decodenyc-backend"
 version = "0.1.0"
-description = "Multimodal civic AI agent backend with ADK"
+description = "DecodeNYC: Multimodal civic AI agent backend with ADK"
 requires-python = ">=3.13"
 dependencies = [
     "google-adk>=1.20.0",

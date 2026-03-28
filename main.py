@@ -1,5 +1,5 @@
 def main():
-    print("Hello from algorithm-explained!")
+    print("Hello from decodenyc!")
 
 
 if __name__ == "__main__":

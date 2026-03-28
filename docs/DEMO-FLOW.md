@@ -1,8 +1,8 @@
-# Demo Flow: Algorithm Explained
+# Demo Flow: DecodeNYC
 
 ## Demo Overview
 
-This demo showcases the empathetic, storytelling approach of the Algorithm Explained agent, focusing on housing assistance questions. The agent translates technical algorithm specifications into human-centered narratives that help NYC residents understand how government systems make decisions about their lives.
+This demo showcases the empathetic, storytelling approach of the DecodeNYC agent, focusing on housing assistance questions. The agent translates technical algorithm specifications into human-centered narratives that help NYC residents understand how government systems make decisions about their lives.
 
 **Key Features Demonstrated:**
 - Empathetic recognition of housing crisis situations
@@ -167,7 +167,7 @@ You have the right to know why you're being scored and what factors were used. Y
 ## Demo Presentation Tips
 
 ### Opening (30 seconds)
-- "Today I'm showing you Algorithm Explained, a civic AI agent that helps NYC residents understand how government algorithms affect their lives."
+- "Today I'm showing you DecodeNYC, a civic AI agent that helps NYC residents understand how government algorithms affect their lives."
 - "Unlike typical chatbots that just answer questions, this agent acts as a translator - turning bureaucratic algorithm specifications into plain-language stories that everyday New Yorkers can understand."
 - "It's built on Google's Gemini 2.5 Flash with native audio support, and it uses the NYC Algorithmic Tools Compliance Report as its data source."
 

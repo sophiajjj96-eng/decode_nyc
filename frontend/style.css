@@ -84,6 +84,7 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
 }
 
 .header-btn {
@@ -147,6 +148,90 @@ header h1 {
 .flag-bias-btn svg {
   width: 18px;
   height: 18px;
+}
+
+/* ── Language Selector ── */
+.language-selector {
+  position: relative;
+  width: 36px; 
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, transform 0.1s, border-color 0.2s, box-shadow 0.2s;
+  font-size: 1.25rem;
+}
+
+.language-selector:hover {
+  background: var(--accent);
+  color: var(--text-dark);
+  border-color: var(--accent-border);
+  box-shadow: 0 2px 8px rgba(212, 233, 247, 0.4);
+}
+
+.language-selector:active {
+  transform: scale(0.95);
+}
+
+.language-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 100;
+  min-width: 160px;
+  animation: dropdownSlide 0.2s ease;
+}
+
+@keyframes dropdownSlide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.92rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.language-option:last-child {
+  border-bottom: none;
+}
+
+.language-option:hover {
+  background: var(--accent);
+}
+
+.language-option.active {
+  background: var(--accent);
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.language-option .flag {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.language-option .label {
+  flex: 1;
 }
 
 /* ── Chat area ── */

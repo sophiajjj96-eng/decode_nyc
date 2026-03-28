@@ -4,7 +4,7 @@
 
 set -e
 
-echo "=== Algorithm Explained - GCP Setup ==="
+echo "=== DecodeNYC - GCP Setup ==="
 echo ""
 
 # Get project ID

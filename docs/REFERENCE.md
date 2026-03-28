@@ -1,10 +1,10 @@
 # Technical Reference
 
-Complete technical reference for Algorithm Explained.
+Complete technical reference for DecodeNYC.
 
 ## System Overview
 
-Algorithm Explained is a multimodal civic AI agent combining Google's ADK with NYC Open Data to help residents understand government algorithms through text and voice.
+DecodeNYC is a multimodal civic AI agent combining Google's ADK with NYC Open Data to help residents understand government algorithms through text and voice.
 
 **Stack:**
 - Frontend: Vanilla JavaScript + Web Audio API

@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 # Application name constant
-APP_NAME = "algorithm-explained"
+APP_NAME = "decodenyc"
 
 # ========================================
 # Phase 1: Application Initialization (once at startup)
@@ -273,6 +273,7 @@ async def websocket_endpoint(
     websocket: WebSocket,
     user_id: str,
     session_id: str,
+    language: str = "en",
     proactivity: bool = False,
     affective_dialog: bool = False,
 ) -> None:
@@ -282,12 +283,13 @@ async def websocket_endpoint(
         websocket: The WebSocket connection
         user_id: User identifier
         session_id: Session identifier
+        language: Language code (en, es, zh-CN)
         proactivity: Enable proactive audio (native audio models only)
         affective_dialog: Enable affective dialog (native audio models only)
     """
     logger.debug(
         f"WebSocket connection request: user_id={user_id}, session_id={session_id}, "
-        f"proactivity={proactivity}, affective_dialog={affective_dialog}"
+        f"language={language}, proactivity={proactivity}, affective_dialog={affective_dialog}"
     )
     await websocket.accept()
     logger.debug("WebSocket connection accepted")
@@ -358,10 +360,15 @@ async def websocket_endpoint(
     # Initialize conversation state for this session
     state_key = f"{user_id}:{session_id}"
     if state_key not in conversation_states:
-        conversation_states[state_key] = ConversationState()
-        logger.debug(f"Created new conversation state for {state_key}")
+        conversation_states[state_key] = ConversationState(language=language)
+        logger.debug(f"Created new conversation state for {state_key} with language={language}")
     
     conv_state = conversation_states[state_key]
+    
+    # Update language if it changed
+    if conv_state.language != language:
+        conv_state.language = language
+        logger.debug(f"Updated language to {language} for {state_key}")
     
     # Track if welcome was sent in this WebSocket connection
     welcome_sent = False
@@ -446,7 +453,7 @@ async def websocket_endpoint(
         nonlocal welcome_sent
         if not conv_state.history and not welcome_sent:
             logger.debug("New conversation detected, sending welcome message")
-            welcome_data = get_welcome_message()
+            welcome_data = get_welcome_message(conv_state.language)
             welcome_message = {
                 "type": "welcome",
                 "message": welcome_data["message"],
@@ -488,7 +495,10 @@ async def websocket_endpoint(
                     for msg in conv_state.history[-10:]
                 ]
                 
-                followup_questions = await generate_followup_questions(history_for_followup)
+                followup_questions = await generate_followup_questions(
+                    history_for_followup, 
+                    conv_state.language
+                )
                 
                 if followup_questions:
                     logger.debug(f"Generated {len(followup_questions)} follow-up questions")

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Audit the Algorithm</title>
+  <title>DecodeNYC</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/static/style.css"/>
 </head>
@@ -11,10 +11,27 @@
 
 <header>
   <div class="header-left">
-    <h1>Audit the Algorithm</h1>
+    <h1>Decode NYC</h1>
     <span id="status-indicator" class="status-indicator"></span>
   </div>
   <div class="header-actions">
+    <div class="language-selector" id="language-selector" title="Change language">
+      <span id="current-flag">🇺🇸</span>
+    </div>
+    <div class="language-dropdown hidden" id="language-dropdown">
+      <div class="language-option" data-lang="en">
+        <span class="flag">🇺🇸</span>
+        <span class="label">English</span>
+      </div>
+      <div class="language-option" data-lang="es">
+        <span class="flag">🇪🇸</span>
+        <span class="label">Español</span>
+      </div>
+      <div class="language-option" data-lang="zh-CN">
+        <span class="flag">🇨🇳</span>
+        <span class="label">简体中文</span>
+      </div>
+    </div>
     <button id="new-conversation-btn" class="header-btn" title="Start new conversation">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="1 4 1 10 7 10"/>

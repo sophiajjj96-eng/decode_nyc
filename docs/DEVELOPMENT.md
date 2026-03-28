@@ -1,6 +1,6 @@
 # Development Guide
 
-Guide for developers contributing to Algorithm Explained.
+Guide for developers contributing to DecodeNYC.
 
 ## Project Structure
 

@@ -342,21 +342,61 @@ async def classify_intent_for_agent(question: str) -> str:
     return detect_intent(question)
 
 
-def get_welcome_message() -> dict:
-    """Get welcome message and starter prompts."""
-    return {
-        "message": "Ask me about NYC government algorithms and how they might affect you.",
-        "prompts": [
-            "How does the government use AI on me?",
-            "What algorithmic tools does the NYPD use?",
-            "How do housing algorithms affect me?",
-            "Does NYC use AI in child services?",
-        ],
+def get_welcome_message(language: str = "en") -> dict:
+    """Get welcome message and starter prompts.
+    
+    Args:
+        language: Language code (en, es, zh-CN)
+        
+    Returns:
+        Dictionary with message and prompts
+    """
+    messages = {
+        "en": {
+            "message": "Ask me about NYC government algorithms and how they might affect you.",
+            "prompts": [
+                "How does the government use AI on me?",
+                "What algorithmic tools does the NYPD use?",
+                "How do housing algorithms affect me?",
+                "Does NYC use AI in child services?",
+            ],
+        },
+        "es": {
+            "message": "Pregúntame sobre los algoritmos del gobierno de NYC y cómo podrían afectarte.",
+            "prompts": [
+                "¿Cómo usa el gobierno la IA sobre mí?",
+                "¿Qué herramientas algorítmicas usa la policía?",
+                "¿Cómo me afectan los algoritmos de vivienda?",
+                "¿NYC usa IA en servicios infantiles?",
+            ],
+        },
+        "zh-CN": {
+            "message": "询问我关于纽约市政府算法以及它们如何可能影响您。",
+            "prompts": [
+                "政府如何在我身上使用人工智能？",
+                "纽约警察局使用什么算法工具？",
+                "住房算法如何影响我？",
+                "纽约市在儿童服务中使用人工智能吗？",
+            ],
+        },
     }
+    
+    return messages.get(language, messages["en"])
 
 
-async def generate_followup_questions(conversation_history: list[dict[str, str]]) -> list[str]:
-    """Generate suggested follow-up questions."""
+async def generate_followup_questions(
+    conversation_history: list[dict[str, str]], 
+    language: str = "en"
+) -> list[str]:
+    """Generate suggested follow-up questions.
+    
+    Args:
+        conversation_history: List of conversation messages
+        language: Language code (en, es, zh-CN)
+        
+    Returns:
+        List of follow-up questions in the specified language
+    """
     if not conversation_history:
         return []
 
@@ -374,6 +414,14 @@ async def generate_followup_questions(conversation_history: list[dict[str, str]]
             f"{msg['role'].upper()}: {msg['text']}"
             for msg in conversation_history[-10:]
         )
+        
+        language_instructions = {
+            "en": "English",
+            "es": "Spanish (use natural Spanish phrasing, informal 'tú' form)",
+            "zh-CN": "Simplified Chinese (use simplified characters 简体中文, mainland Chinese conventions)",
+        }
+        
+        lang_instruction = language_instructions.get(language, "English")
 
         prompt = f"""
 Based on this conversation about NYC government algorithms, suggest 3 concise next questions the user might ask.
@@ -384,6 +432,7 @@ Conversation history:
 Requirements:
 - Focus on NYC algorithmic tools and how they affect residents
 - Keep each question under 14 words
+- Generate questions in {lang_instruction}
 - Return ONLY a JSON array of strings
 
 Format:

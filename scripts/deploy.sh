@@ -1,9 +1,9 @@
 #!/bin/bash
-# Deploy Algorithm Explained to Cloud Run
+# Deploy DecodeNYC to Cloud Run
 
 set -e
 
-echo "=== Deploying Algorithm Explained to Cloud Run ==="
+echo "=== Deploying DecodeNYC to Cloud Run ==="
 echo ""
 
 # Get project ID

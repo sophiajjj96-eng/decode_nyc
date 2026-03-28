@@ -1,6 +1,6 @@
 # Documentation
 
-Complete documentation for Algorithm Explained.
+Complete documentation for DecodeNYC.
 
 ## Getting Started
 

@@ -1,6 +1,6 @@
 # Quick Start
 
-Get Algorithm Explained running in 60 seconds.
+Get DecodeNYC running in 60 seconds.
 
 ## Install and Run
 

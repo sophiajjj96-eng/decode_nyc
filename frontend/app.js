@@ -1,10 +1,14 @@
 /**
- * WebSocket client for Algorithm Explained with ADK bi-directional streaming
+ * WebSocket client for DecodeNYC with ADK bi-directional streaming
  */
 
 import { startAudioPlayerWorklet } from "./audio-player.js";
 import { startAudioRecorderWorklet, stopMicrophone } from "./audio-recorder.js";
 import { injectFlowchartIfNeeded } from "./flowchart-display.js";
+import { t, getFlag, getSupportedLanguages } from "./translations.js";
+
+// Language state
+let currentLanguage = localStorage.getItem('decodenyc-language') || 'en';
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -14,11 +18,14 @@ const micBtn = document.getElementById('mic-btn');
 const voiceBtn = document.getElementById('voice-btn');
 const voiceBars = document.getElementById('voice-bars');
 const statusLabel = document.getElementById('status-indicator');
+const languageSelector = document.getElementById('language-selector');
+const languageDropdown = document.getElementById('language-dropdown');
+const currentFlag = document.getElementById('current-flag');
 let empty = document.getElementById('empty');
 
 // WebSocket state
 const userId = "civic-user";
-let sessionId = "session-" + Math.random().toString(36).substring(7);
+const sessionId = "session-" + Math.random().toString(36).substring(7);
 let websocket = null;
 let welcomeReceived = false;
 
@@ -82,6 +89,119 @@ function clearEmpty() {
     empty = null; 
   }
 }
+
+// Language management
+function applyTranslations() {
+  // Update input placeholder
+  inputEl.placeholder = t('inputPlaceholder', currentLanguage);
+  
+  // Update button titles
+  sendBtn.title = t('sendMessage', currentLanguage);
+  micBtn.title = t('speechToText', currentLanguage);
+  voiceBtn.title = inVoiceSession ? t('disableAudioMode', currentLanguage) : t('enableAudioMode', currentLanguage);
+  
+  // Update header button titles
+  document.getElementById('new-conversation-btn').title = t('newConversation', currentLanguage);
+  document.getElementById('flag-bias-btn').title = t('flagBias', currentLanguage);
+  
+  // Update empty state
+  if (empty) {
+    const emptyP = empty.querySelector('p');
+    if (emptyP) {
+      emptyP.textContent = t('emptyState', currentLanguage);
+    }
+  }
+  
+  // Update modal labels
+  const modalTitle = document.querySelector('#bias-modal .modal-header h2');
+  if (modalTitle) modalTitle.textContent = t('modalTitle', currentLanguage);
+  
+  const labels = {
+    'bias-title': 'issueSummary',
+    'bias-email': 'contactEmail',
+    'bias-body': 'conversationContext',
+    'bias-explanation': 'yourExplanation'
+  };
+  
+  for (const [inputId, key] of Object.entries(labels)) {
+    const label = document.querySelector(`label[for="${inputId}"]`);
+    if (label) {
+      const optionalSpan = label.querySelector('.optional');
+      label.textContent = t(key, currentLanguage);
+      if (optionalSpan && key === 'contactEmail') {
+        label.appendChild(document.createTextNode(' '));
+        label.appendChild(optionalSpan);
+        optionalSpan.textContent = t('optional', currentLanguage);
+      }
+    }
+  }
+  
+  const biasExplanation = document.getElementById('bias-explanation');
+  if (biasExplanation) {
+    biasExplanation.placeholder = t('explanationPlaceholder', currentLanguage);
+  }
+  
+  const discardBtn = document.getElementById('discard-btn');
+  if (discardBtn) discardBtn.textContent = t('discard', currentLanguage);
+  
+  const submitBiasBtn = document.getElementById('submit-bias-btn');
+  if (submitBiasBtn && submitBiasBtn.textContent !== t('submitting', currentLanguage)) {
+    submitBiasBtn.textContent = t('submit', currentLanguage);
+  }
+  
+  const apologyP = document.querySelector('.apology');
+  if (apologyP) apologyP.textContent = t('apology', currentLanguage);
+  
+  const emailResponseP = document.getElementById('email-response');
+  if (emailResponseP) emailResponseP.textContent = t('emailResponse', currentLanguage);
+  
+  const modalLoadingP = document.querySelector('.modal-loading p');
+  if (modalLoadingP) modalLoadingP.textContent = t('generatingContext', currentLanguage);
+}
+
+function setLanguage(lang) {
+  currentLanguage = lang;
+  localStorage.setItem('decodenyc-language', lang);
+  currentFlag.textContent = getFlag(lang);
+  
+  // Update active state in dropdown
+  document.querySelectorAll('.language-option').forEach(option => {
+    if (option.dataset.lang === lang) {
+      option.classList.add('active');
+    } else {
+      option.classList.remove('active');
+    }
+  });
+  
+  // Apply translations
+  applyTranslations();
+  
+  // If connected, restart conversation to apply language
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    resetConversation();
+  }
+}
+
+// Language selector event handlers
+languageSelector.addEventListener('click', (e) => {
+  e.stopPropagation();
+  languageDropdown.classList.toggle('hidden');
+});
+
+document.addEventListener('click', (e) => {
+  if (!languageSelector.contains(e.target)) {
+    languageDropdown.classList.add('hidden');
+  }
+});
+
+document.querySelectorAll('.language-option').forEach(option => {
+  option.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const lang = option.dataset.lang;
+    setLanguage(lang);
+    languageDropdown.classList.add('hidden');
+  });
+});
 
 // Text input handlers
 inputEl.addEventListener('input', () => {
@@ -171,7 +291,7 @@ async function startVoiceSession() {
     setStatus('audio mode active');
     console.log('[AUDIO] Voice session started - type or speak to get audio responses');
   } catch (err) {
-    appendMessage('bot', 'Could not start audio. Please check microphone permissions.');
+    appendMessage('bot', t('audioPermissionError', currentLanguage));
     console.error('Audio initialization error:', err);
     inVoiceSession = false;
     return;
@@ -220,7 +340,7 @@ async function startRecording(mode) {
     
     setStatus('audio initialized');
   } catch (err) {
-    appendMessage('bot', 'Could not start audio. Please check microphone permissions.');
+    appendMessage('bot', t('audioPermissionError', currentLanguage));
     console.error('Audio initialization error:', err);
     return;
   }
@@ -339,29 +459,29 @@ function updateButtonStates() {
     inputEl.disabled = true;
     
     if (currentVoiceMode === 'microphone') {
-      micBtn.title = 'Click to stop';
+      micBtn.title = t('stopRecording', currentLanguage);
       voiceBtn.disabled = true;
-      voiceBtn.title = 'Stop microphone first';
+      voiceBtn.title = t('stopMicFirst', currentLanguage);
       sendBtn.disabled = true;
-      sendBtn.title = 'Stop recording first';
+      sendBtn.title = t('stopRecordingFirst', currentLanguage);
     }
   } else if (inVoiceSession) {
     // Audio mode active but not recording
     inputEl.disabled = false;
     micBtn.disabled = false;
-    micBtn.title = 'Speech to text';
+    micBtn.title = t('speechToText', currentLanguage);
     voiceBtn.disabled = false;
-    voiceBtn.title = 'Click to disable audio mode';
+    voiceBtn.title = t('disableAudioMode', currentLanguage);
     sendBtn.disabled = false;
-    sendBtn.title = 'Send message';
+    sendBtn.title = t('sendMessage', currentLanguage);
   } else {
     inputEl.disabled = false;
     micBtn.disabled = false;
-    micBtn.title = 'Speech to text';
+    micBtn.title = t('speechToText', currentLanguage);
     voiceBtn.disabled = false;
-    voiceBtn.title = 'Click to enable audio mode';
+    voiceBtn.title = t('enableAudioMode', currentLanguage);
     sendBtn.disabled = false;
-    sendBtn.title = 'Send message';
+    sendBtn.title = t('sendMessage', currentLanguage);
   }
 }
 
@@ -530,12 +650,12 @@ function updateBubble(element, text, streaming = false) {
 // WebSocket connection
 function connectWebsocket() {
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = wsProtocol + "//" + window.location.host + "/ws/" + userId + "/" + sessionId;
+  const wsUrl = wsProtocol + "//" + window.location.host + "/ws/" + userId + "/" + sessionId + "?language=" + currentLanguage;
   
   websocket = new WebSocket(wsUrl);
   
   websocket.onopen = function() {
-    console.log("[WEBSOCKET] Connected");
+    console.log("[WEBSOCKET] Connected with language:", currentLanguage);
     setStatus('connected');
   };
   
@@ -903,19 +1023,19 @@ async function submitBiasReport() {
   
   // Validate required fields
   if (!explanation) {
-    alert('Please provide an explanation of the bias issue.');
+    alert(t('explainRequired', currentLanguage));
     return;
   }
   
   // Validate email format if provided
   if (email && !isValidEmail(email)) {
-    alert('Please enter a valid email address or leave it empty.');
+    alert(t('invalidEmail', currentLanguage));
     return;
   }
   
   // Disable submit button
   submitBiasBtn.disabled = true;
-  submitBiasBtn.textContent = 'Submitting...';
+  submitBiasBtn.textContent = t('submitting', currentLanguage);
   
   try {
     const response = await fetch('/api/flag-bias', {
@@ -951,14 +1071,14 @@ async function submitBiasReport() {
     setTimeout(() => {
       closeBiasModal();
       submitBiasBtn.disabled = false;
-      submitBiasBtn.textContent = 'Submit';
+      submitBiasBtn.textContent = t('submit', currentLanguage);
     }, 4000);
     
   } catch (error) {
     console.error('Error submitting bias report:', error);
-    alert('Failed to submit bias report. Please try again.');
+    alert(t('submitError', currentLanguage));
     submitBiasBtn.disabled = false;
-    submitBiasBtn.textContent = 'Submit';
+    submitBiasBtn.textContent = t('submit', currentLanguage);
   }
 }
 
@@ -991,7 +1111,7 @@ function resetConversation() {
   }
   
   // Clear chat UI
-  chat.innerHTML = '<div class="empty" id="empty"><p>Find out how NYC\'s algorithms affect you</p></div>';
+  chat.innerHTML = `<div class="empty" id="empty"><p>${t('emptyState', currentLanguage)}</p></div>`;
   empty = document.getElementById('empty');
   
   // Reset all conversation state
@@ -1027,5 +1147,7 @@ function resetConversation() {
 // ========================================
 // Initialize
 // ========================================
+applyTranslations();
+setLanguage(currentLanguage);
 connectWebsocket();
 inputEl.focus();

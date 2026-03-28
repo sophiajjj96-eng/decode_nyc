@@ -1,4 +1,4 @@
-# Algorithm Explained
+# DecodeNYC
 
 Multimodal civic AI agent that helps NYC residents understand government algorithms through natural text and voice conversations.
 

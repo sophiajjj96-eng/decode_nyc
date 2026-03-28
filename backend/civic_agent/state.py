@@ -19,6 +19,7 @@ class ConversationState:
     current_topic: str | None = None
     current_subtopic: str | None = None
     clarification_depth: int = 0
+    language: str = "en"
     
     def add_message(self, role: str, text: str) -> None:
         """Add a message to the conversation history."""
@@ -48,6 +49,7 @@ class ConversationState:
             "current_topic": self.current_topic,
             "current_subtopic": self.current_subtopic,
             "clarification_depth": self.clarification_depth,
+            "language": self.language,
         }
     
     @classmethod
@@ -60,4 +62,5 @@ class ConversationState:
             current_topic=data.get("current_topic"),
             current_subtopic=data.get("current_subtopic"),
             clarification_depth=data.get("clarification_depth", 0),
+            language=data.get("language", "en"),
         )

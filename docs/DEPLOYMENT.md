@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Deploy Algorithm Explained to Google Cloud Run with Vertex AI and WebSocket support.
+Deploy DecodeNYC to Google Cloud Run with Vertex AI and WebSocket support.
 
 ## Prerequisites
 
