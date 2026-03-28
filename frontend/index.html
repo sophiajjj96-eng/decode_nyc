@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Audit the Algorithm</title>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
 
@@ -13,16 +13,6 @@
   <div class="header-left">
     <h1>Audit the Algorithm</h1>
     <span id="status-label">ready</span>
-  </div>
-  <div class="mode-toggle">
-    <button id="btn-text" class="mode-btn active" onclick="setMode('text')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h12"/></svg>
-      Text
-    </button>
-    <button id="btn-voice" class="mode-btn" onclick="setMode('voice')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-      Voice
-    </button>
   </div>
 </header>
 
@@ -33,39 +23,35 @@
 </div>
 
 <footer>
-
-  <!-- ── TEXT MODE ── -->
-  <div id="text-input-area">
-    <div id="form">
-      <textarea id="input" rows="1" placeholder="e.g. Does the NYPD use AI to make decisions about me?"></textarea>
-      <button id="send" title="Send">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-
-  <!-- ── VOICE MODE ── -->
-  <div id="voice-input-area" class="hidden">
-    <p id="voice-hint">Click to start a live conversation.</p>
-    <button id="mic-btn" class="idle" title="Start Discussion">
-      <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <div id="form">
+    <textarea id="input" rows="1" placeholder="e.g. Does the NYPD use AI to make decisions about me?"></textarea>
+    <button id="send" title="Send message">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+      </svg>
+    </button>
+    <button id="mic-btn" class="idle" title="Speech to text">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
         <line x1="12" y1="19" x2="12" y2="22"/>
       </svg>
-      <span id="mic-label">Start Discussion</span>
     </button>
-    <div id="voice-bars" class="hidden">
-      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-      <div class="bar"></div><div class="bar"></div>
-    </div>
+    <button id="voice-btn" class="idle" title="Voice conversation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+        <path d="M15.5 8.5c.79.64 1.5 1.62 1.5 3.5s-.71 2.86-1.5 3.5"/>
+        <path d="M19 5.5a9 9 0 010 13"/>
+      </svg>
+    </button>
   </div>
-
+  <div id="voice-bars" class="hidden">
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar"></div><div class="bar"></div>
+  </div>
 </footer>
 
 <!-- script loaded as ES module for audio worklet imports -->
-<script src="app.js" type="module"></script>
+<script src="/static/app.js" type="module"></script>
 </body>
 </html>
