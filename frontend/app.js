@@ -12,7 +12,7 @@ const sendBtn = document.getElementById('send');
 const micBtn = document.getElementById('mic-btn');
 const voiceBtn = document.getElementById('voice-btn');
 const voiceBars = document.getElementById('voice-bars');
-const statusLabel = document.getElementById('status-label');
+const statusLabel = document.getElementById('status-indicator');
 let empty = document.getElementById('empty');
 
 // WebSocket state
@@ -51,8 +51,25 @@ let currentTopic = null;
 let currentSubtopic = null;
 let clarificationDepth = 0;
 
-function setStatus(s) { 
-  statusLabel.textContent = s; 
+function setStatus(s) {
+  const statusColors = {
+    'ready': 'green',
+    'connected': 'green',
+    'audio initialized': 'green',
+    'listening…': 'orange',
+    'agent speaking…': 'orange',
+    'reconnecting…': 'orange',
+    'error': 'red'
+  };
+  
+  const color = statusColors[s] || 'green';
+  
+  statusLabel.className = 'status-indicator';
+  if (color === 'orange') {
+    statusLabel.classList.add('status-orange');
+  } else if (color === 'red') {
+    statusLabel.classList.add('status-red');
+  }
 }
 
 function clearEmpty() {
@@ -279,6 +296,34 @@ function appendMessage(role, text, streaming = false) {
   return row;
 }
 
+function renderPromptButtons(prompts, container) {
+  if (!prompts || prompts.length === 0) return;
+  
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'category-buttons';
+  
+  prompts.forEach(prompt => {
+    const btn = document.createElement('button');
+    btn.className = 'category-btn';
+    btn.textContent = prompt;
+    btn.onclick = () => {
+      clearEmpty();
+      appendMessage('user', prompt);
+      conversationHistory.push({ role: 'user', text: prompt });
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      sendMessage(prompt);
+      
+      // Remove all prompt buttons after click
+      document.querySelectorAll('.category-buttons').forEach(el => el.remove());
+    };
+    buttonContainer.appendChild(btn);
+  });
+  
+  container.appendChild(buttonContainer);
+  chat.scrollTop = chat.scrollHeight;
+}
+
 function renderAssistantResponse(text) {
   // Track assistant message in history
   conversationHistory.push({ role: 'assistant', text: text });
@@ -377,6 +422,28 @@ function connectWebsocket() {
 
 // Handle ADK events
 function handleADKEvent(event) {
+  // Handle welcome message
+  if (event.type === 'welcome') {
+    clearEmpty();
+    const welcomeRow = appendMessage('bot', event.message);
+    if (event.prompts && event.prompts.length > 0) {
+      renderPromptButtons(event.prompts, welcomeRow);
+    }
+    return;
+  }
+  
+  // Handle suggested prompts (follow-up questions)
+  if (event.type === 'suggested_prompts') {
+    if (event.prompts && event.prompts.length > 0) {
+      // Add buttons below the last bot message
+      const lastBotRow = Array.from(chat.querySelectorAll('.row.bot')).pop();
+      if (lastBotRow) {
+        renderPromptButtons(event.prompts, lastBotRow);
+      }
+    }
+    return;
+  }
+  
   // Turn complete - reset state
   if (event.turnComplete) {
     if (typingIndicator) {
@@ -572,6 +639,168 @@ function base64ToArray(base64) {
   return bytes.buffer;
 }
 
+// ========================================
+// Bias Report Modal
+// ========================================
+
+const flagBiasBtn = document.getElementById('flag-bias-btn');
+const biasModal = document.getElementById('bias-modal');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+const biasTitle = document.getElementById('bias-title');
+const biasEmail = document.getElementById('bias-email');
+const biasBody = document.getElementById('bias-body');
+const biasExplanation = document.getElementById('bias-explanation');
+const discardBtn = document.getElementById('discard-btn');
+const submitBiasBtn = document.getElementById('submit-bias-btn');
+const modalForm = document.getElementById('modal-form');
+const modalThankYou = document.getElementById('modal-thank-you');
+const modalLoading = document.getElementById('modal-loading');
+const thankYouSummary = document.getElementById('thank-you-summary');
+const emailResponse = document.getElementById('email-response');
+
+flagBiasBtn.addEventListener('click', openBiasModal);
+modalCloseBtn.addEventListener('click', closeBiasModal);
+discardBtn.addEventListener('click', closeBiasModal);
+submitBiasBtn.addEventListener('click', submitBiasReport);
+
+biasModal.addEventListener('click', (e) => {
+  if (e.target === biasModal) {
+    closeBiasModal();
+  }
+});
+
+async function openBiasModal() {
+  biasModal.classList.remove('hidden');
+  modalForm.classList.add('hidden');
+  modalThankYou.classList.add('hidden');
+  modalLoading.classList.remove('hidden');
+  
+  // Reset form fields
+  biasTitle.value = '';
+  biasEmail.value = '';
+  biasBody.value = '';
+  biasExplanation.value = '';
+  
+  try {
+    // Generate context using Gemini
+    const response = await fetch('/api/generate-bias-context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_history: conversationHistory.slice(-10).map(msg => ({
+          role: msg.role,
+          text: msg.text
+        }))
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to generate context');
+    }
+    
+    const data = await response.json();
+    
+    // Populate fields
+    biasTitle.value = data.title;
+    biasBody.value = data.body;
+    
+    // Show form
+    modalLoading.classList.add('hidden');
+    modalForm.classList.remove('hidden');
+    
+  } catch (error) {
+    console.error('Error generating bias context:', error);
+    
+    // Fallback values
+    biasTitle.value = 'Bias Report';
+    biasBody.value = 'A conversation about NYC algorithmic tools raised potential bias concerns that warrant review.';
+    
+    modalLoading.classList.add('hidden');
+    modalForm.classList.remove('hidden');
+  }
+}
+
+function closeBiasModal() {
+  biasModal.classList.add('hidden');
+  modalForm.classList.remove('hidden');
+  modalThankYou.classList.add('hidden');
+  modalLoading.classList.add('hidden');
+}
+
+async function submitBiasReport() {
+  const title = biasTitle.value.trim();
+  const email = biasEmail.value.trim();
+  const body = biasBody.value.trim();
+  const explanation = biasExplanation.value.trim();
+  
+  // Validate required fields
+  if (!explanation) {
+    alert('Please provide an explanation of the bias issue.');
+    return;
+  }
+  
+  // Validate email format if provided
+  if (email && !isValidEmail(email)) {
+    alert('Please enter a valid email address or leave it empty.');
+    return;
+  }
+  
+  // Disable submit button
+  submitBiasBtn.disabled = true;
+  submitBiasBtn.textContent = 'Submitting...';
+  
+  try {
+    const response = await fetch('/api/flag-bias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: title,
+        body: body,
+        email: email || null,
+        user_explanation: explanation
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to submit bias report');
+    }
+    
+    const data = await response.json();
+    
+    // Show thank you message
+    modalForm.classList.add('hidden');
+    thankYouSummary.textContent = data.summary;
+    
+    if (email) {
+      emailResponse.classList.remove('hidden');
+    } else {
+      emailResponse.classList.add('hidden');
+    }
+    
+    modalThankYou.classList.remove('hidden');
+    
+    // Close modal after delay
+    setTimeout(() => {
+      closeBiasModal();
+      submitBiasBtn.disabled = false;
+      submitBiasBtn.textContent = 'Submit';
+    }, 4000);
+    
+  } catch (error) {
+    console.error('Error submitting bias report:', error);
+    alert('Failed to submit bias report. Please try again.');
+    submitBiasBtn.disabled = false;
+    submitBiasBtn.textContent = 'Submit';
+  }
+}
+
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// ========================================
 // Initialize
+// ========================================
 connectWebsocket();
 inputEl.focus();

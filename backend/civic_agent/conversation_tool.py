@@ -1,11 +1,17 @@
 """Conversation flow management tools for multi-turn dialog."""
 
+import json
+import logging
+import os
 import re
 from collections import Counter
 
+from google import genai
 from google.adk.tools import FunctionTool
 
 from .state import ConversationState
+
+logger = logging.getLogger(__name__)
 
 
 def detect_intent(question: str) -> str:
@@ -252,6 +258,87 @@ async def classify_intent_for_agent(question: str) -> str:
         Intent type: 'broad', 'factual', or 'followup'
     """
     return detect_intent(question)
+
+
+def get_welcome_message() -> dict:
+    """Get welcome message and common prompts for new conversations.
+    
+    Returns:
+        Dictionary with 'message' and 'prompts' keys
+    """
+    return {
+        "message": "Ask me about NYC government algorithms and how they might affect you.",
+        "prompts": [
+            "What algorithmic tools does the NYPD use?",
+            "How do housing algorithms affect me?",
+            "Does NYC use AI for school admissions?",
+            "Tell me about ShotSpotter",
+        ]
+    }
+
+
+async def generate_followup_questions(conversation_history: list[dict[str, str]]) -> list[str]:
+    """Generate logical next questions using Gemini based on conversation context.
+    
+    Args:
+        conversation_history: List of conversation messages with role and text
+        
+    Returns:
+        List of 3-4 suggested follow-up questions
+    """
+    if not conversation_history:
+        return []
+    
+    try:
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        
+        # Use last 5 exchanges for context
+        recent_history = conversation_history[-10:]
+        
+        # Format conversation history for prompt
+        formatted_history = "\n".join([
+            f"{msg['role'].upper()}: {msg['text']}"
+            for msg in recent_history
+        ])
+        
+        prompt = f"""Based on this conversation about NYC government algorithms, suggest 3-4 logical next questions the user might ask.
+
+Conversation history:
+{formatted_history}
+
+Requirements:
+- Make questions specific and actionable
+- Focus on NYC algorithms and how they affect residents
+- Keep questions concise (under 15 words each)
+- Return ONLY a JSON array of question strings, no other text
+
+Format: ["question1", "question2", "question3"]"""
+        
+        response = await client.aio.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=prompt,
+        )
+        
+        response_text = response.text.strip()
+        
+        # Remove markdown code blocks if present
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+        
+        questions = json.loads(response_text)
+        
+        if isinstance(questions, list) and all(isinstance(q, str) for q in questions):
+            return questions[:4]  # Max 4 questions
+        
+        logger.warning(f"Unexpected follow-up format: {questions}")
+        return []
+        
+    except Exception as e:
+        logger.error(f"Error generating follow-up questions: {e}")
+        return []
 
 
 conversation_path_tool = FunctionTool(suggest_conversation_path)
