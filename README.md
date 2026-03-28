@@ -56,6 +56,14 @@ Open `http://localhost:8000` and try asking:
 - Modern browser (Chrome, Edge, Safari)
 - Microphone for voice mode
 
+## Team
+
+- Mathijs de Jong
+- Brian Yin
+- Sophia Choi
+- Mina Ban
+
+
 ## Resources
 
 - [ADK Documentation](https://google.github.io/adk-docs/)
