@@ -16,6 +16,8 @@ from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+from google import genai
+from pydantic import BaseModel
 
 # Load environment variables from .env file BEFORE importing agent
 load_dotenv(Path(__file__).parent / ".env")
@@ -23,6 +25,14 @@ load_dotenv(Path(__file__).parent / ".env")
 # Import agent after loading environment variables
 # pylint: disable=wrong-import-position
 from civic_agent.agent import agent  # noqa: E402
+from civic_agent.state import ConversationState  # noqa: E402
+from civic_agent.conversation_tool import (  # noqa: E402
+    resolve_short_reply,
+    should_offer_topic_menu,
+    build_top_level_categories,
+    clean_answer,
+    infer_topic_from_question,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -49,6 +59,9 @@ app.mount("/static", StaticFiles(directory=frontend_dir, html=True), name="stati
 
 # Define session service
 session_service = InMemorySessionService()
+
+# Conversation state storage (keyed by user_id/session_id)
+conversation_states: dict[str, ConversationState] = {}
 
 # Define runner
 runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service)
@@ -105,7 +118,7 @@ async def websocket_endpoint(
 
     # Automatically determine response modality based on model architecture
     model_name = agent.model
-    is_native_audio = "native-audio" in model_name.lower()
+    is_native_audio = isinstance(model_name, str) and "native-audio" in model_name.lower()
 
     if is_native_audio:
         # Native audio models require AUDIO response modality with transcription
@@ -161,6 +174,14 @@ async def websocket_endpoint(
         await session_service.create_session(
             app_name=APP_NAME, user_id=user_id, session_id=session_id
         )
+    
+    # Initialize conversation state for this session
+    state_key = f"{user_id}:{session_id}"
+    if state_key not in conversation_states:
+        conversation_states[state_key] = ConversationState()
+        logger.debug(f"Created new conversation state for {state_key}")
+    
+    conv_state = conversation_states[state_key]
 
     live_request_queue = LiveRequestQueue()
 
@@ -195,11 +216,26 @@ async def websocket_endpoint(
 
                 # Extract text from JSON and send to LiveRequestQueue
                 if json_message.get("type") == "text":
-                    logger.debug(
-                        f"Sending text content: {json_message['text']}"
+                    user_text = json_message["text"]
+                    logger.debug(f"Sending text content: {user_text}")
+                    
+                    # Track user message in conversation state
+                    conv_state.add_message("user", user_text)
+                    
+                    # Resolve short replies like "1", "first", "both"
+                    resolved_text = resolve_short_reply(
+                        question=user_text,
+                        last_options=conv_state.last_options,
+                        current_topic=conv_state.current_topic,
                     )
+                    
+                    # If text was resolved, update it
+                    if resolved_text != user_text:
+                        logger.debug(f"Resolved '{user_text}' to '{resolved_text}'")
+                        user_text = resolved_text
+                    
                     content = types.Content(
-                        parts=[types.Part(text=json_message["text"])]
+                        parts=[types.Part(text=user_text)]
                     )
                     live_request_queue.send_content(content)
 
@@ -215,6 +251,14 @@ async def websocket_endpoint(
             live_request_queue=live_request_queue,
             run_config=run_config,
         ):
+            # Track assistant messages in conversation state
+            if hasattr(event, "content") and event.content and hasattr(event.content, "parts"):
+                if event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            conv_state.add_message("assistant", part.text)
+                            logger.debug(f"Tracked assistant message: {part.text[:100]}...")
+            
             event_json = event.model_dump_json(exclude_none=True, by_alias=True)
             logger.debug(f"[SERVER] Event: {event_json}")
             await websocket.send_text(event_json)

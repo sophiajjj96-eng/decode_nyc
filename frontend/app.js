@@ -44,6 +44,13 @@ let typingIndicator = null;
 let speechBuffer = '';
 let speechRevealInterval = null;
 
+// Conversation state (mirrors backend state management)
+let conversationHistory = [];
+let lastOptions = [];
+let currentTopic = null;
+let currentSubtopic = null;
+let clarificationDepth = 0;
+
 function setStatus(s) { 
   statusLabel.textContent = s; 
 }
@@ -76,6 +83,10 @@ function submitText() {
   
   clearEmpty();
   appendMessage('user', text);
+  
+  // Track user message in local history
+  conversationHistory.push({ role: 'user', text: text });
+  
   inputEl.value = '';
   inputEl.style.height = 'auto';
   
@@ -253,13 +264,51 @@ function appendMessage(role, text, streaming = false) {
   
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (streaming ? ' streaming' : '');
-  bubble.textContent = text;
+  
+  // Render markdown for bot messages if marked.js is available
+  if (role === 'bot' && window.marked) {
+    bubble.innerHTML = marked.parse(text);
+  } else {
+    bubble.textContent = text;
+  }
   
   row.appendChild(avatar);
   row.appendChild(bubble);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
   return row;
+}
+
+function renderAssistantResponse(text) {
+  // Track assistant message in history
+  conversationHistory.push({ role: 'assistant', text: text });
+  
+  // Check if response contains numbered options
+  const optionPattern = /^\d+\.\s+(.+)$/gm;
+  const matches = [...text.matchAll(optionPattern)];
+  
+  if (matches.length >= 2) {
+    // Extract options
+    lastOptions = matches.map(m => m[1].trim());
+    clarificationDepth++;
+    
+    // Try to infer topic from the text
+    const lowerText = text.toLowerCase();
+    if (!currentTopic) {
+      if (lowerText.includes('housing') || lowerText.includes('homeless')) {
+        currentTopic = 'Housing and homelessness';
+      } else if (lowerText.includes('education') || lowerText.includes('school')) {
+        currentTopic = 'Education and schools';
+      } else if (lowerText.includes('police') || lowerText.includes('public safety')) {
+        currentTopic = 'Public safety and policing';
+      } else if (lowerText.includes('child') || lowerText.includes('family')) {
+        currentTopic = 'Child welfare and family services';
+      }
+    }
+  } else {
+    // Reset depth when getting specific answer
+    clarificationDepth = 0;
+  }
 }
 
 function showTyping() {
@@ -283,7 +332,14 @@ function showTyping() {
 
 function updateBubble(element, text, streaming = false) {
   const bubble = element.querySelector('.bubble');
-  bubble.textContent = text;
+  
+  // Render markdown if available and element is a bot message
+  if (element.classList.contains('bot') && window.marked) {
+    bubble.innerHTML = marked.parse(text);
+  } else {
+    bubble.textContent = text;
+  }
+  
   bubble.className = 'bubble' + (streaming ? ' streaming' : '');
   chat.scrollTop = chat.scrollHeight;
 }
@@ -394,11 +450,15 @@ function handleADKEvent(event) {
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
     
-    // When finished, show as user message and auto-send
+    // When finished, show as user message and track in history
     if (isFinished) {
       stopRecording();
       clearEmpty();
       appendMessage('user', text);
+      
+      // Track user message in local history
+      conversationHistory.push({ role: 'user', text: text });
+      
       inputEl.value = '';
       inputEl.style.height = 'auto';
       // Note: Already sent to backend via audio stream, no need to send again
@@ -434,6 +494,7 @@ function handleADKEvent(event) {
           speechRevealInterval = null;
         }
         updateBubble(currentOutputTranscriptionElement, speechBuffer, false);
+        renderAssistantResponse(speechBuffer);
         currentOutputTranscriptionElement = null;
         speechBuffer = '';
         isAgentSpeaking = false;
@@ -448,6 +509,7 @@ function handleADKEvent(event) {
       }
       
       if (isFinished) {
+        renderAssistantResponse(text);
         currentOutputTranscriptionElement = null;
         isAgentSpeaking = false;
         setStatus('ready');
@@ -482,6 +544,12 @@ function handleADKEvent(event) {
         } else {
           const existingText = currentBubbleElement.querySelector('.bubble').textContent;
           updateBubble(currentBubbleElement, existingText + part.text, true);
+        }
+        
+        // Track complete text messages
+        if (event.turnComplete) {
+          const finalText = currentBubbleElement.querySelector('.bubble').textContent;
+          renderAssistantResponse(finalText);
         }
       }
     }

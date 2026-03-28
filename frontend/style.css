@@ -356,3 +356,85 @@ footer {
   font-style: normal;
   font-weight: 300;
 }
+
+/* ── Markdown styles in bot bubbles ── */
+.bubble p {
+  margin: 0 0 10px;
+}
+
+.bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.bubble ul,
+.bubble ol {
+  margin: 10px 0 10px 20px;
+  padding: 0;
+}
+
+.bubble li {
+  margin: 6px 0;
+}
+
+.bubble strong {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.bubble em {
+  font-style: italic;
+  color: var(--text);
+}
+
+.bubble code {
+  background: var(--surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.bubble pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+.bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+/* ── Option buttons (for menu responses) ── */
+.category-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.category-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dark);
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 400;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.category-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+}
+
+.category-btn:active {
+  transform: translateY(0);
+}
