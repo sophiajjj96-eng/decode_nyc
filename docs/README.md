@@ -8,6 +8,7 @@ Complete documentation for Algorithm Explained.
 
 ## Reference
 
+- [Google Solutions](GOOGLE-SOLUTIONS.md) - GCP services and architecture
 - [Technical Reference](REFERENCE.md) - Architecture, API, and dataset tool
 - [Development Guide](DEVELOPMENT.md) - Contributing and code quality
 - [Deployment Guide](DEPLOYMENT.md) - Deploy to Cloud Run
