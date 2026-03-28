@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -35,6 +36,8 @@ from civic_agent.conversation_tool import (  # noqa: E402
     get_welcome_message,
     generate_followup_questions,
 )
+from civic_agent.friction_detector import analyze_friction, aggregate_friction_stats  # noqa: E402
+from api.friction_report import router as friction_router  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +58,9 @@ APP_NAME = "algorithm-explained"
 
 app = FastAPI()
 
+# Mount API routers
+app.include_router(friction_router)
+
 # Mount static files (frontend)
 frontend_dir = Path(__file__).parent.parent / "frontend"
 app.mount("/static", StaticFiles(directory=frontend_dir, html=True), name="static")
@@ -68,6 +74,34 @@ conversation_states: dict[str, ConversationState] = {}
 # Define runner
 runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service)
 
+# Question logger (anonymous)
+QUESTIONS_LOG_DIR = Path(__file__).parent / "data"
+QUESTIONS_LOG_DIR.mkdir(exist_ok=True)
+QUESTIONS_LOG_FILE = QUESTIONS_LOG_DIR / "questions_anonymous.jsonl"
+
+
+def log_question_anonymously(question_text: str, algorithm_context: str | None = None) -> None:
+    """Log question without any user identifiers for bias detection.
+    
+    Args:
+        question_text: The question content only
+        algorithm_context: Optional algorithm ID if detected
+    """
+    try:
+        log_entry = {
+            "question": question_text,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if algorithm_context:
+            log_entry["algorithm"] = algorithm_context
+        
+        with QUESTIONS_LOG_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+        
+        logger.debug(f"Logged anonymous question: {question_text[:50]}...")
+    except Exception as e:
+        logger.error(f"Failed to log question: {e}")
+
 # ========================================
 # HTTP Endpoints
 # ========================================
@@ -75,8 +109,14 @@ runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service)
 
 @app.get("/")
 async def root():
-    """Serve the index.html page."""
+    """Serve the landing page."""
     return FileResponse(frontend_dir / "index.html")
+
+
+@app.get("/agent")
+async def agent_page():
+    """Serve the agent chat interface."""
+    return FileResponse(frontend_dir / "agent.html")
 
 
 @app.get("/health")
@@ -361,6 +401,19 @@ async def websocket_endpoint(
                     
                     # Track user message in conversation state
                     conv_state.add_message("user", user_text)
+                    
+                    # Log question anonymously (no user identifiers)
+                    algo_context = infer_topic_from_question(user_text)
+                    log_question_anonymously(user_text, algo_context)
+                    
+                    # Analyze for friction/skepticism signals (Social Antenna)
+                    friction_analysis = await analyze_friction(user_text)
+                    if friction_analysis.get("is_high_friction"):
+                        logger.info(
+                            f"HIGH FRICTION detected: score={friction_analysis['friction_score']}, "
+                            f"sentiment={friction_analysis['sentiment']}, "
+                            f"algo={friction_analysis.get('algorithm_id', 'unknown')}"
+                        )
                     
                     # Resolve short replies like "1", "first", "both"
                     resolved_text = resolve_short_reply(

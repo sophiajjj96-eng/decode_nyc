@@ -1,0 +1,60 @@
+{
+  "algorithms": {
+    "homebase_raq": "Cuestionario de Evaluación de Riesgo de Homebase",
+    "myschools": "MySchools - Algoritmo de Emparejamiento Gale-Shapley",
+    "acs_repeat_maltreatment": "Modelo Predictivo de Maltrato Repetido de ACS",
+    "shotspotter": "ShotSpotter"
+  },
+  "agencies": {
+    "Department of Homeless Services": "Departamento de Servicios para Personas sin Hogar",
+    "NYC Public Schools": "Escuelas Públicas de NYC",
+    "Administration for Children's Services": "Administración de Servicios para Niños",
+    "New York Police Department": "Departamento de Policía de Nueva York"
+  },
+  "key_terms": {
+    "algorithm": "algoritmo",
+    "eligibility": "elegibilidad",
+    "score": "puntaje",
+    "risk": "riesgo",
+    "fairness": "equidad",
+    "bias": "sesgo",
+    "prior contact": "contacto previo",
+    "housing": "vivienda",
+    "shelter": "refugio",
+    "school": "escuela",
+    "police": "policía",
+    "investigation": "investigación",
+    "appeal": "apelación"
+  },
+  "common_phrases": {
+    "What it looks at": "En qué se fija",
+    "How it works": "Cómo funciona",
+    "Known fairness issues": "Problemas de equidad conocidos",
+    "What you can do": "Qué puedes hacer",
+    "Your eligibility is affected because": "Tu elegibilidad se ve afectada porque",
+    "The system penalizes people for": "El sistema penaliza a las personas por",
+    "This is a known fairness concern": "Esta es una preocupación de equidad conocida",
+    "You have the right to": "Tienes el derecho de",
+    "Contact Legal Aid Society": "Contacta a Legal Aid Society",
+    "Call 311": "Llama al 311"
+  },
+  "fairness_concerns": {
+    "prior_dhs_penalty": "El contacto previo con DHS reduce tu puntaje — penaliza a las personas por haber necesitado ayuda antes",
+    "no_public_thresholds": "No hay documentación pública sobre los umbrales exactos de puntuación",
+    "limited_appeal": "Proceso de apelación formal limitado si el puntaje es demasiado bajo",
+    "historical_bias": "Entrenado con datos históricos que pueden incorporar patrones de denegación pasados",
+    "address_impact": "La dirección del hogar es un factor — los estudiantes en vecindarios de bajos ingresos pueden tener menos opciones competitivas cerca",
+    "black_box": "El algoritmo es una caja negra — los datos de entrenamiento del proveedor no se divulgan",
+    "false_positives": "Tasa de falsos positivos conocida: sonidos que no son disparos activan respuesta policial",
+    "disproportionate_deployment": "Despliegue desproporcionado en comunidades de color"
+  },
+  "storytelling": {
+    "Because you've used services before": "Porque has usado servicios antes",
+    "Your income level affects": "Tu nivel de ingresos afecta",
+    "Where you live matters": "Donde vives importa",
+    "Your family size is considered": "El tamaño de tu familia se considera",
+    "The system learned from past data": "El sistema aprendió de datos pasados",
+    "This algorithm decides who gets priority": "Este algoritmo decide quién obtiene prioridad",
+    "Many families don't know they're being scored": "Muchas familias no saben que están siendo evaluadas"
+  }
+}
