@@ -14,28 +14,68 @@ from .state import ConversationState
 logger = logging.getLogger(__name__)
 
 
+def contains_any(text: str, phrases: list[str]) -> bool:
+    """Return True if any phrase appears in the text."""
+    return any(phrase in text for phrase in phrases)
+
+
+def contains_topic_words(
+    text: str,
+    words: list[str],
+    min_matches: int = 1,
+) -> bool:
+    """Return True if at least min_matches words appear in the text."""
+    matches = sum(1 for word in words if word in text)
+    return matches >= min_matches
+
+
 def detect_intent(question: str) -> str:
-    """Classify user intent based on keywords and patterns.
-    
-    Returns: 'broad', 'factual', or 'followup'
+    """Classify user intent.
+
+    Returns one of:
+    - broad
+    - factual
+    - impact
+    - follow_up
+    - unknown
     """
     lower = question.lower().strip()
-    
+
+    if contains_any(
+        lower,
+        [
+            "affect me",
+            "impact me",
+            "harm",
+            "concern",
+            "risk",
+            "fair",
+            "unfair",
+            "biased",
+            "accurate",
+            "wrong",
+        ],
+    ):
+        return "impact"
+
+    if contains_any(lower, ["tell me more", "what else", "what about", "continue", "go on", "expand"]):
+        return "follow_up"
+
     broad_patterns = [
         r"^(what|which|tell me about).*(algorithm|tool|system)s?\s*(are|do|does)",
         r"^how (many|much|does).*(nyc|city|government)",
         r"^(show|list|give).*(all|overview|summary)",
         r"^what (can|should|do) (i|you|we) (know|do)",
     ]
-    
+
     for pattern in broad_patterns:
         if re.search(pattern, lower):
             return "broad"
-    
-    if any(word in lower for word in ["explain", "tell me more", "what about", "how about", "also"]):
-        return "followup"
-    
-    return "factual"
+
+    if contains_topic_words(lower, ["what", "how", "why", "when", "where", "who", "does", "is", "can"], min_matches=1):
+        return "factual"
+
+    return "unknown"
 
 
 def should_offer_topic_menu(state: ConversationState, question: str) -> bool:
@@ -166,65 +206,107 @@ def build_numbered_intro(intro_text: str, options: list[str], prompt: str) -> st
 def infer_topic_from_question(question: str) -> str | None:
     """Extract topic from question text."""
     lower = question.lower()
-    
-    if any(word in lower for word in ["housing", "homeless", "eviction", "apartment", "shelter"]):
-        return "Housing and homelessness"
-    elif any(word in lower for word in ["school", "education", "student", "teacher"]):
-        return "Education and schools"
-    elif any(word in lower for word in ["police", "nypd", "patrol", "arrest", "crime"]):
-        return "Public safety and policing"
-    elif any(word in lower for word in ["child", "acs", "family", "welfare"]):
-        return "Child welfare and family services"
-    
+
+    if any(word in lower for word in ["child", "children", "family", "acs", "welfare"]):
+        return "Protecting children and supporting families"
+    if any(word in lower for word in ["jail", "correction", "custody", "public safety", "police", "nypd"]):
+        return "Public safety and jails"
+    if any(word in lower for word in ["health", "illness", "foodborne", "disease"]):
+        return "Public health"
+    if any(word in lower for word in ["housing", "benefits", "voucher", "homeless", "shelter"]):
+        return "Housing and benefits"
+
     return None
 
 
 def infer_subtopic_from_question(question: str) -> str | None:
-    """Extract subtopic from question text."""
+    """Infer narrower subtopic from question text."""
     lower = question.lower()
-    
-    if "shotspotter" in lower or "gunshot" in lower:
-        return "ShotSpotter"
-    elif "homebase" in lower or "raq" in lower:
-        return "Homebase Risk Assessment"
-    elif "myschools" in lower or "school match" in lower:
-        return "MySchools matching"
-    elif "acs" in lower and "predict" in lower:
-        return "ACS Repeat Maltreatment Model"
-    
+
+    if any(word in lower for word in ["harm", "maltreatment", "risk", "asap", "repeat maltreatment"]):
+        return "Predicting child safety risks"
+
     return None
 
 
 def clean_answer(answer: str) -> str:
     """Clean up model artifacts from answer text."""
     answer = answer.strip()
-    
+
     patterns_to_remove = [
         r"\[NARRATION\]",
         r"\[/NARRATION\]",
         r"\[IMAGE_PROMPT\]",
         r"\[/IMAGE_PROMPT\]",
     ]
-    
     for pattern in patterns_to_remove:
         answer = re.sub(pattern, "", answer, flags=re.IGNORECASE)
-    
+
+    paragraphs = [part.strip() for part in answer.split("\n\n") if part.strip()]
+    if len(paragraphs) > 3:
+        answer = "\n\n".join(paragraphs[:3])
+    else:
+        answer = "\n\n".join(paragraphs)
+
     return answer.strip()
 
 
 async def classify_intent_with_model(question: str, history: list) -> str:
-    """Use the model to classify intent when keyword detection is insufficient.
-    
-    This is a fallback for edge cases. Returns 'broad', 'factual', or 'followup'.
-    """
-    if len(history) == 0:
-        return "factual"
-    
-    recent_user_messages = [msg.text for msg in history[-3:] if msg.role == "user"]
-    
-    if len(recent_user_messages) > 1:
-        return "followup"
-    
+    """Fallback intent classifier for ambiguous cases."""
+    api_key = os.getenv("VERTEX_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return detect_intent(question)
+
+    history_text = "\n".join(
+        f"{msg.role.upper()}: {msg.text}"
+        for msg in history[-4:]
+        if hasattr(msg, "role") and hasattr(msg, "text")
+    ) or "No prior conversation."
+
+    prompt = f"""
+Classify the user's latest message into exactly one of these labels:
+
+- factual
+- impact
+- follow_up
+- broad
+
+Definitions:
+- factual: asking for information about a tool, agency, service, or how something works
+- impact: asking how something could affect a person, family, fairness, classification, or possible harm
+- follow_up: continuing the current thread conversationally without asking for a brand-new broad explanation
+- broad: asking a general high-level question that should usually be narrowed first
+
+Conversation so far:
+{history_text}
+
+Latest user message:
+{question}
+
+Respond with only one word:
+factual
+impact
+follow_up
+broad
+""".strip()
+
+    try:
+        if os.getenv("VERTEX_API_KEY"):
+            client = genai.Client(vertexai=True, api_key=os.getenv("VERTEX_API_KEY"))
+        else:
+            client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+        response = await client.aio.models.generate_content(
+            model=os.getenv("TEXT_MODEL", "gemini-2.5-flash"),
+            contents=prompt,
+        )
+        text = response.text.strip().lower() if response.text else "factual"
+
+        if text in {"factual", "impact", "follow_up", "broad"}:
+            return text
+    except Exception as exc:
+        logger.warning("Model intent classification failed: %s", exc)
+
     return detect_intent(question)
 
 
@@ -261,84 +343,74 @@ async def classify_intent_for_agent(question: str) -> str:
 
 
 def get_welcome_message() -> dict:
-    """Get welcome message and common prompts for new conversations.
-    
-    Returns:
-        Dictionary with 'message' and 'prompts' keys
-    """
+    """Get welcome message and starter prompts."""
     return {
         "message": "Ask me about NYC government algorithms and how they might affect you.",
         "prompts": [
+            "How does the government use AI on me?",
             "What algorithmic tools does the NYPD use?",
             "How do housing algorithms affect me?",
-            "Does NYC use AI for school admissions?",
-            "Tell me about ShotSpotter",
-        ]
+            "Does NYC use AI in child services?",
+        ],
     }
 
 
 async def generate_followup_questions(conversation_history: list[dict[str, str]]) -> list[str]:
-    """Generate logical next questions using Gemini based on conversation context.
-    
-    Args:
-        conversation_history: List of conversation messages with role and text
-        
-    Returns:
-        List of 3-4 suggested follow-up questions
-    """
+    """Generate suggested follow-up questions."""
     if not conversation_history:
         return []
-    
+
+    api_key = os.getenv("VERTEX_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return []
+
     try:
-        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        
-        # Use last 5 exchanges for context
-        recent_history = conversation_history[-10:]
-        
-        # Format conversation history for prompt
-        formatted_history = "\n".join([
+        if os.getenv("VERTEX_API_KEY"):
+            client = genai.Client(vertexai=True, api_key=os.getenv("VERTEX_API_KEY"))
+        else:
+            client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+        formatted_history = "\n".join(
             f"{msg['role'].upper()}: {msg['text']}"
-            for msg in recent_history
-        ])
-        
-        prompt = f"""Based on this conversation about NYC government algorithms, suggest 3-4 logical next questions the user might ask.
+            for msg in conversation_history[-10:]
+        )
+
+        prompt = f"""
+Based on this conversation about NYC government algorithms, suggest 3 concise next questions the user might ask.
 
 Conversation history:
 {formatted_history}
 
 Requirements:
-- Make questions specific and actionable
-- Focus on NYC algorithms and how they affect residents
-- Keep questions concise (under 15 words each)
-- Return ONLY a JSON array of question strings, no other text
+- Focus on NYC algorithmic tools and how they affect residents
+- Keep each question under 14 words
+- Return ONLY a JSON array of strings
 
-Format: ["question1", "question2", "question3"]"""
-        
+Format:
+["question 1", "question 2", "question 3"]
+""".strip()
+
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model=os.getenv("TEXT_MODEL", "gemini-2.5-flash"),
             contents=prompt,
         )
-        
-        response_text = response.text.strip()
-        
-        # Remove markdown code blocks if present
+
+        response_text = response.text.strip() if response.text else "[]"
+
         if response_text.startswith("```"):
             response_text = response_text.split("```")[1]
             if response_text.startswith("json"):
                 response_text = response_text[4:]
             response_text = response_text.strip()
-        
+
         questions = json.loads(response_text)
-        
+
         if isinstance(questions, list) and all(isinstance(q, str) for q in questions):
-            return questions[:4]  # Max 4 questions
-        
-        logger.warning(f"Unexpected follow-up format: {questions}")
-        return []
-        
-    except Exception as e:
-        logger.error(f"Error generating follow-up questions: {e}")
-        return []
+            return questions[:4]
+    except Exception as exc:
+        logger.error("Error generating follow-up questions: %s", exc)
+
+    return []
 
 
 conversation_path_tool = FunctionTool(suggest_conversation_path)

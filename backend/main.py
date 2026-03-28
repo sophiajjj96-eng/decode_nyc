@@ -362,6 +362,9 @@ async def websocket_endpoint(
         logger.debug(f"Created new conversation state for {state_key}")
     
     conv_state = conversation_states[state_key]
+    
+    # Track if welcome was sent in this WebSocket connection
+    welcome_sent = False
 
     live_request_queue = LiveRequestQueue()
 
@@ -439,8 +442,9 @@ async def websocket_endpoint(
             f"Starting run_live with user_id={user_id}, session_id={session_id}"
         )
         
-        # Send welcome message if this is a new conversation
-        if not conv_state.history:
+        # Send welcome message if this is a new conversation and not already sent
+        nonlocal welcome_sent
+        if not conv_state.history and not welcome_sent:
             logger.debug("New conversation detected, sending welcome message")
             welcome_data = get_welcome_message()
             welcome_message = {
@@ -449,6 +453,7 @@ async def websocket_endpoint(
                 "prompts": welcome_data["prompts"]
             }
             await websocket.send_text(json.dumps(welcome_message))
+            welcome_sent = True
             logger.debug(f"Sent welcome message with {len(welcome_data['prompts'])} prompts")
         
         # Track assistant response text for follow-up generation

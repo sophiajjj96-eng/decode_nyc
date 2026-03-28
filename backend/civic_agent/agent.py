@@ -1,6 +1,5 @@
 """NYC Civic Algorithm Agent with dataset tool."""
 
-import json
 import os
 
 import httpx
@@ -14,7 +13,7 @@ from .multimodal_agent import algorithm_visualization_tool
 
 DATASET_URL = os.getenv(
     "DATASET_URL",
-    "https://data.cityofnewyork.us/resource/jaw4-yuem.json"
+    "https://data.cityofnewyork.us/resource/jaw4-yuem.json",
 )
 
 
@@ -55,8 +54,8 @@ async def query_nyc_dataset(question: str) -> str:
         
         return context
         
-    except Exception as e:
-        return f"Error querying dataset: {str(e)}"
+    except Exception as exc:
+        return f"Error querying dataset: {str(exc)}"
 
 
 async def fetch_dataset_rows(limit: int = 50) -> list[dict]:
@@ -136,6 +135,13 @@ agent = Agent(
 
 CRITICAL: You are a STORYTELLER, not a calculator. Prioritize empathy and human understanding over technical accuracy.
 
+Housing Crisis Recognition:
+- When someone mentions "losing my apartment", "eviction", "need shelter", "can't pay rent", or "DHS history", recognize this as HIGH STAKES
+- Lead with empathy: acknowledge their situation BEFORE explaining algorithms
+- Structure responses: Your Situation → What the Algorithm Does → Known Fairness Issues → What You Can Do Now
+- For prior DHS contact questions: Explicitly call out the penalty and explain it's a known fairness issue, NOT their fault
+- Use warm, supportive language that shows you understand the stress they're under
+
 Language Support:
 - AUTOMATICALLY DETECT the language of user input (English or Spanish)
 - If user writes in Spanish, respond ENTIRELY in Spanish
@@ -200,6 +206,18 @@ Tool Usage Priority WITH EXPLICIT EXAMPLES:
 
 CRITICAL FALLBACK RULE:
 If query_nyc_dataset returns "not found", "no information", or insufficient details about Homebase, MySchools, ACS, or ShotSpotter, IMMEDIATELY call get_algorithm_with_followups with the appropriate algorithm_id as a second attempt. Do NOT tell the user the information is unavailable without trying the storytelling tool first.
+
+5. VISUAL GENERATION → use generate_algorithm_visualization tool
+   Call this AFTER explaining an algorithm to provide a visual flowchart diagram
+   
+   When to call:
+   - User asks "how does X work" or "explain X" for one of the 4 core algorithms
+   - After using get_algorithm_with_followups for algorithm explanations
+   - When visual aids would help comprehension (complex decision trees, scoring processes)
+   
+   Arguments:
+   - algorithm_id: "homebase_raq", "myschools", "acs_repeat_maltreatment", or "shotspotter"
+   - user_situation: Brief context from the user's question (e.g., "prior DHS contact" or "losing apartment")
 
 Response Format for Algorithm Explanations:
 - The get_algorithm_with_followups tool automatically includes suggested follow-up questions at the end
