@@ -1,1 +1,28 @@
-
+[
+  {
+    "id": "school_assignment",
+    "name": "School Assignment System",
+    "agency": "NYC DOE",
+    "service": "School assignment",
+    "summary": "Assigns students to schools based on preferences and availability.",
+    "inputs": ["location", "preferences", "seat availability"],
+    "decision_effect": "Determines which school a student is placed into.",
+    "fairness_concerns": [
+      "geographic inequality",
+      "lack of transparency in priority rules"
+    ]
+  },
+  {
+    "id": "benefits_screening",
+    "name": "Benefits Eligibility Screening",
+    "agency": "NYC HRA",
+    "service": "Benefits eligibility",
+    "summary": "Screens applications for prioritization and review.",
+    "inputs": ["income", "household size", "application completeness"],
+    "decision_effect": "May delay or prioritize applications.",
+    "fairness_concerns": [
+      "opaque criteria",
+      "potential disadvantage for incomplete applications"
+    ]
+  }
+]
