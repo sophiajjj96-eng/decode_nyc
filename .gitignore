@@ -1,0 +1,14 @@
+# Python
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# Secrets
+backend/.env
+
+# macOS
+.DS_Store
+
+# Node (future proof)
+node_modules/
+dist/

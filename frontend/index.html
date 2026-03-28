@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audit the Algorithm</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Audit the Algorithm</h1>
+    <span id="status-label">ready</span>
+  </div>
+  <div class="mode-toggle">
+    <button id="btn-text" class="mode-btn active" onclick="setMode('text')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h12"/></svg>
+      Text
+    </button>
+    <button id="btn-voice" class="mode-btn" onclick="setMode('voice')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      Voice
+    </button>
+  </div>
+</header>
+
+<div id="chat">
+  <div class="empty" id="empty">
+    <p>Find out how NYC's algorithms affect you</p>
+  </div>
+</div>
+
+<footer>
+
+  <!-- ── TEXT MODE ── -->
+  <div id="text-input-area">
+    <div id="form">
+      <textarea id="input" rows="1" placeholder="e.g. Does the NYPD use AI to make decisions about me?"></textarea>
+      <button id="send" title="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── VOICE MODE ── -->
+  <div id="voice-input-area" class="hidden">
+    <p id="voice-hint">Click to start a live conversation.</p>
+    <button id="mic-btn" class="idle" title="Start Discussion">
+      <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+      </svg>
+      <span id="mic-label">Start Discussion</span>
+    </button>
+    <div id="voice-bars" class="hidden">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+    </div>
+  </div>
+
+</footer>
+
+<!-- script loaded at end of body so DOM is ready when it runs -->
+<script src="chat.js"></script>
+</body>
+</html>
