@@ -327,5 +327,45 @@ footer {
   user-select: none;
 }
 
+.bubble p {
+  margin: 0 0 10px;
+}
+
+.bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.bubble ul,
+.bubble ol {
+  margin: 10px 0 10px 20px;
+  padding: 0;
+}
+
+.bubble li {
+  margin: 6px 0;
+}
+.category-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.category-btn {
+  border: 1px solid #cfc7bb;
+  background: #f6f1e8;
+  color: #1f1a17;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.category-btn:hover {
+  background: #ece3d3;
+}
+
+
+
 .empty p  { font-size: 0.85rem; font-weight: 300; }
 .empty em { font-family: 'Instrument Serif', serif; font-size: 1.8rem; color: var(--border); font-style: italic; }

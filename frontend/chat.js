@@ -1,19 +1,22 @@
-// ─────────────────────────────────────────
-// ELEMENTS — grabbed after DOM is parsed
-// ─────────────────────────────────────────
-const chat        = document.getElementById('chat');
-const inputEl     = document.getElementById('input');
-const sendBtn     = document.getElementById('send');
-const micBtn      = document.getElementById('mic-btn');
-const micLabel    = document.getElementById('mic-label');
-const voiceBars   = document.getElementById('voice-bars');
+const chat = document.getElementById('chat');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const micBtn = document.getElementById('mic-btn');
+const micLabel = document.getElementById('mic-label');
+const voiceBars = document.getElementById('voice-bars');
 const statusLabel = document.getElementById('status-label');
-let   empty       = document.getElementById('empty');
+let empty = document.getElementById('empty');
 
-// ─────────────────────────────────────────
-// MODE SWITCHING — on window so HTML onclick can call it
-// ─────────────────────────────────────────
 let currentMode = 'text';
+let voiceState = 'idle';
+let recognition = null;
+let liveRow = null;
+
+let conversationHistory = [];
+let lastOptions = [];
+let currentTopic = null;
+let currentSubtopic = null;
+let clarificationDepth = 0;
 
 window.setMode = function(mode) {
   currentMode = mode;
@@ -25,11 +28,10 @@ window.setMode = function(mode) {
   if (mode === 'text') inputEl.focus();
 };
 
-function setStatus(s) { statusLabel.textContent = s; }
+function setStatus(s) {
+  statusLabel.textContent = s;
+}
 
-// ─────────────────────────────────────────
-// TEXT MODE — Enter submits, Shift+Enter adds newline
-// ─────────────────────────────────────────
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
@@ -37,48 +39,45 @@ inputEl.addEventListener('input', () => {
 
 inputEl.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();   // stops the newline
+    e.preventDefault();
     submitText();
   }
 });
 
 sendBtn.addEventListener('click', submitText);
+micBtn.addEventListener('click', handleMicClick);
 
-async function submitText() {
-  const text = inputEl.value.trim();
+async function submitText(prefilledText = null) {
+  const text = (prefilledText ?? inputEl.value).trim();
   if (!text) return;
+
   clearEmpty();
   appendMessage('user', text);
+
+  conversationHistory.push({ role: 'user', text });
+
   inputEl.value = '';
   inputEl.style.height = 'auto';
   setStatus('thinking…');
 
   const typingRow = showTyping();
+
   try {
     const reply = await getReply(text);
     typingRow.remove();
-    appendMessage('bot', reply);
+    renderAssistantResponse(reply);
     setStatus('ready');
   } catch (err) {
     typingRow.remove();
-    appendMessage('bot', 'Something went wrong. Please try again.');
+    appendMessage('bot', `Something went wrong: ${err.message}`);
     setStatus('error');
     console.error(err);
   }
 }
 
-// ─────────────────────────────────────────
-// VOICE MODE — three states: idle | listening | speaking
-// ─────────────────────────────────────────
-let voiceState  = 'idle';
-let recognition = null;
-let liveRow     = null;
-
-micBtn.addEventListener('click', handleMicClick);
-
 function handleMicClick() {
   if (voiceState === 'idle') startSession();
-  else                       stopSession();
+  else stopSession();
 }
 
 function setVoiceState(state) {
@@ -104,9 +103,10 @@ function setVoiceState(state) {
 
 function startSession() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   if (!SpeechRecognition) {
     clearEmpty();
-    appendMessage('bot', 'Voice requires Chrome (or another browser with SpeechRecognition support) and an HTTPS connection. Please use text mode or switch browsers.');
+    appendMessage('bot', 'Voice requires Chrome or another browser with SpeechRecognition support and HTTPS. Please use text mode or switch browsers.');
     return;
   }
 
@@ -115,16 +115,19 @@ function startSession() {
   clearEmpty();
 
   recognition = new SpeechRecognition();
-  recognition.lang           = 'en-US';
+  recognition.lang = 'en-US';
   recognition.interimResults = true;
-  recognition.continuous     = true;
+  recognition.continuous = true;
 
   recognition.onresult = (event) => {
-    let interim = '', final = '';
+    let interim = '';
+    let final = '';
+
     for (const result of event.results) {
-      if (result.isFinal) final   += result[0].transcript;
-      else                interim += result[0].transcript;
+      if (result.isFinal) final += result[0].transcript;
+      else interim += result[0].transcript;
     }
+
     const display = (final + interim).trim();
     if (!display) return;
 
@@ -146,21 +149,20 @@ function startSession() {
   };
 
   recognition.onend = () => {
-    // Only auto-finish if we didn't manually stop
     if (voiceState === 'listening') finishSpeaking();
   };
 
   try {
     recognition.start();
   } catch (err) {
-    appendMessage('bot', "Could not start voice recognition. Make sure you're on HTTPS.");
+    appendMessage('bot', 'Could not start voice recognition. Make sure you are on HTTPS.');
     setVoiceState('idle');
   }
 }
 
 function stopSession() {
   if (recognition) {
-    recognition.onend = null; // prevent double-trigger
+    recognition.onend = null;
     recognition.stop();
     recognition = null;
   }
@@ -172,7 +174,12 @@ async function finishSpeaking() {
   if (liveRow) liveRow.querySelector('.bubble').classList.remove('streaming');
   liveRow = null;
 
-  if (!text) { setVoiceState('idle'); return; }
+  if (!text) {
+    setVoiceState('idle');
+    return;
+  }
+
+  conversationHistory.push({ role: 'user', text });
 
   setVoiceState('speaking');
   const typingRow = showTyping();
@@ -180,21 +187,39 @@ async function finishSpeaking() {
   try {
     const reply = await getReply(text);
     typingRow.remove();
-    appendMessage('bot', reply);
+    renderAssistantResponse(reply);
     setVoiceState('idle');
   } catch (err) {
     typingRow.remove();
-    appendMessage('bot', 'Something went wrong. Please try again.');
+    appendMessage('bot', `Something went wrong: ${err.message}`);
     setVoiceState('idle');
     console.error(err);
   }
 }
 
-// ─────────────────────────────────────────
-// SHARED HELPERS
-// ─────────────────────────────────────────
+function renderAssistantResponse(data) {
+  const answerText = data.answer || 'I could not generate a reply.';
+  appendMessage('bot', answerText);
+  conversationHistory.push({ role: 'assistant', text: answerText });
+
+  currentTopic = data.current_topic ?? currentTopic;
+  currentSubtopic = data.current_subtopic ?? currentSubtopic;
+  clarificationDepth = Number.isInteger(data.clarification_depth)
+    ? data.clarification_depth
+    : clarificationDepth;
+
+  if (Array.isArray(data.options) && data.options.length > 0) {
+    lastOptions = data.options;
+  } else {
+    lastOptions = [];
+  }
+}
+
 function clearEmpty() {
-  if (empty) { empty.remove(); empty = null; }
+  if (empty) {
+    empty.remove();
+    empty = null;
+  }
 }
 
 function appendMessage(role, text, streaming = false) {
@@ -207,7 +232,12 @@ function appendMessage(role, text, streaming = false) {
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (streaming ? ' streaming' : '');
-  bubble.textContent = text;
+
+  if (role === 'bot' && window.marked) {
+    bubble.innerHTML = marked.parse(text);
+  } else {
+    bubble.textContent = text;
+  }
 
   row.appendChild(avatar);
   row.appendChild(bubble);
@@ -235,29 +265,28 @@ function showTyping() {
   return row;
 }
 
-// ─────────────────────────────────────────
-// API
-// ─────────────────────────────────────────
 async function getReply(message) {
-  const res = await fetch("http://127.0.0.1:8000/ask", {
-    method: "POST",
+  const res = await fetch('http://127.0.0.1:8000/ask', {
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       question: message,
+      history: conversationHistory,
+      last_options: lastOptions,
+      current_topic: currentTopic,
+      current_subtopic: currentSubtopic,
+      clarification_depth: clarificationDepth,
     }),
   });
 
   if (!res.ok) {
-    throw new Error("Backend error");
+    const errorText = await res.text();
+    throw new Error(errorText || 'Backend error');
   }
 
-  const data = await res.json();
-  return data.answer;
+  return await res.json();
 }
 
-// ─────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────
 setMode('text');
