@@ -300,7 +300,9 @@ async def websocket_endpoint(
 
     # Automatically determine response modality based on model architecture
     model_name = agent.model
-    is_native_audio = isinstance(model_name, str) and "native-audio" in model_name.lower()
+    is_native_audio = isinstance(model_name, str) and (
+        "native-audio" in model_name.lower() or "flash-live" in model_name.lower()
+    )
 
     if is_native_audio:
         # Native audio models require AUDIO response modality with transcription

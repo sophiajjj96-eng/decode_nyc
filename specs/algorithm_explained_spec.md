@@ -125,7 +125,7 @@ Pre-process these into JSON before hackathon day. Do NOT try to parse PDFs live.
 | Layer | Technology | Notes |
 |---|---|---|
 | Voice input | Gemini Live API (`gemini-2.0-flash-live`) | Real-time, barge-in supported |
-| Interleaved output | `gemini-2.5-flash-preview-05-20` | `responseModalities: ["TEXT", "IMAGE"]` |
+| Interleaved output | `gemini-2.5-flash-native-audio-preview-12-2025` | `responseModalities: ["TEXT", "IMAGE"]` |
 | TTS narration | Gemini Live API audio output | Same session as voice input |
 | NYC geo data | NYC Open Data NTA boundaries | GeoJSON for neighborhood map |
 | Backend | Google Cloud Run + Google ADK | Agent orchestration |
@@ -182,7 +182,7 @@ async function generateInterleavedOutput(algo, userSituation) {
 
   // ACTUAL Google AI SDK call:
   const result = await googleAI.models.generateContent({
-    model: 'gemini-2.5-flash-preview-05-20',
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
     contents: [{
       role: 'user',
       parts: [{

@@ -128,7 +128,7 @@ nyc_dataset_tool = FunctionTool(query_nyc_dataset)
 agent = Agent(
     name="civic_algorithm_agent",
     model=os.getenv(
-        "DEMO_AGENT_MODEL", "gemini-live-2.5-flash-native-audio"
+        "DEMO_AGENT_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"
     ),
     tools=[nyc_dataset_tool, conversation_path_tool, algorithm_storyteller_tool, list_algorithms_tool, algorithm_with_followups_tool, algorithm_visualization_tool],
     instruction="""You are DecodeNYC, a civic AI assistant that helps NYC residents understand how government algorithms affect them.
