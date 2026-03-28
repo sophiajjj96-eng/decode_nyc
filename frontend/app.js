@@ -10,7 +10,7 @@ const chat = document.getElementById('chat');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('send');
 const micBtn = document.getElementById('mic-btn');
-const micLabel = document.getElementById('mic-label');
+const voiceBtn = document.getElementById('voice-btn');
 const voiceBars = document.getElementById('voice-bars');
 const statusLabel = document.getElementById('status-label');
 let empty = document.getElementById('empty');
@@ -26,28 +26,23 @@ let audioPlayerContext = null;
 let audioRecorderNode = null;
 let audioRecorderContext = null;
 let micStream = null;
-let audioMode = false;
+let audioRecorderInitialized = false;
+let audioPlayerInitialized = false;
 
-// Current mode
-let currentMode = 'text';
-let voiceState = 'idle';
+// Voice recording state
+let isRecording = false;
+let currentVoiceMode = null; // 'microphone' or 'voice'
+let lastUsedMode = null; // Persists for the turn
 
 // Message tracking
 let currentMessageId = null;
 let currentBubbleElement = null;
 let currentInputTranscriptionElement = null;
 let currentOutputTranscriptionElement = null;
-
-// Mode switching
-window.setMode = function(mode) {
-  currentMode = mode;
-  document.getElementById('text-input-area').classList.toggle('hidden', mode !== 'text');
-  document.getElementById('voice-input-area').classList.toggle('hidden', mode !== 'voice');
-  document.getElementById('btn-text').classList.toggle('active', mode === 'text');
-  document.getElementById('btn-voice').classList.toggle('active', mode === 'voice');
-  setStatus('ready');
-  if (mode === 'text') inputEl.focus();
-};
+let isAgentSpeaking = false;
+let typingIndicator = null;
+let speechBuffer = '';
+let speechRevealInterval = null;
 
 function setStatus(s) { 
   statusLabel.textContent = s; 
@@ -95,75 +90,137 @@ function sendMessage(text) {
     });
     websocket.send(jsonMessage);
     console.log("[CLIENT] Sent text:", text);
+    
+    typingIndicator = showTyping();
   }
 }
 
 // Voice handlers
-micBtn.addEventListener('click', handleMicClick);
+micBtn.addEventListener('click', () => handleVoiceClick('microphone'));
+voiceBtn.addEventListener('click', () => handleVoiceClick('voice'));
 
-function handleMicClick() {
-  if (voiceState === 'idle') startVoiceSession();
-  else stopVoiceSession();
-}
-
-function setVoiceState(state) {
-  voiceState = state;
+async function handleVoiceClick(mode) {
+  if (currentVoiceMode && currentVoiceMode !== mode) return;
   
-  micBtn.classList.remove('idle', 'listening', 'speaking');
-  micBtn.classList.add(state);
-  
-  if (state === 'idle') {
-    micLabel.textContent = 'Start Discussion';
-    voiceBars.classList.add('hidden');
-    setStatus('ready');
-  } else if (state === 'listening') {
-    micLabel.textContent = 'Tap to stop';
-    voiceBars.classList.remove('hidden');
-    setStatus('listening…');
-  } else if (state === 'speaking') {
-    micLabel.textContent = 'Tap to interrupt';
-    voiceBars.classList.remove('hidden');
-    setStatus('agent speaking…');
+  if (!isRecording) {
+    await startRecording(mode);
+  } else {
+    stopRecording();
   }
 }
 
-async function startVoiceSession() {
+async function startRecording(mode) {
   clearEmpty();
+  currentVoiceMode = mode;
+  lastUsedMode = mode;
   
-  if (!audioMode) {
-    try {
-      await startAudio();
-      audioMode = true;
-      setStatus('audio initialized');
-    } catch (err) {
-      appendMessage('bot', 'Could not start audio. Please check microphone permissions.');
-      console.error('Audio initialization error:', err);
-      return;
+  const needsAudioPlayer = mode === 'voice';
+  
+  try {
+    if (!audioRecorderInitialized) {
+      const [recorderNode, recorderCtx, stream] = await startAudioRecorderWorklet(audioRecorderHandler);
+      audioRecorderNode = recorderNode;
+      audioRecorderContext = recorderCtx;
+      micStream = stream;
+      audioRecorderInitialized = true;
+      console.log('[AUDIO] Audio recorder initialized');
     }
+    
+    if (needsAudioPlayer && !audioPlayerInitialized) {
+      const [playerNode, playerCtx] = await startAudioPlayerWorklet();
+      audioPlayerNode = playerNode;
+      audioPlayerContext = playerCtx;
+      audioPlayerInitialized = true;
+      console.log('[AUDIO] Audio player initialized');
+    }
+    
+    setStatus('audio initialized');
+  } catch (err) {
+    appendMessage('bot', 'Could not start audio. Please check microphone permissions.');
+    console.error('Audio initialization error:', err);
+    return;
   }
   
-  setVoiceState('listening');
+  isRecording = true;
+  
+  if (mode === 'microphone') {
+    micBtn.classList.remove('idle');
+    micBtn.classList.add('recording');
+  } else {
+    voiceBtn.classList.remove('idle');
+    voiceBtn.classList.add('recording');
+  }
+  
+  voiceBars.classList.remove('hidden');
+  setStatus('listening…');
+  updateButtonStates();
+  
+  typingIndicator = showTyping();
 }
 
-function stopVoiceSession() {
-  setVoiceState('idle');
+function stopRecording() {
+  isRecording = false;
+  currentVoiceMode = null; // Clear active recording, but keep lastUsedMode for response
+  
+  micBtn.classList.remove('recording');
+  micBtn.classList.add('idle');
+  voiceBtn.classList.remove('recording');
+  voiceBtn.classList.add('idle');
+  
+  voiceBars.classList.add('hidden');
+  setStatus('ready');
+  updateButtonStates();
 }
 
-async function startAudio() {
-  const [playerNode, playerCtx] = await startAudioPlayerWorklet();
-  audioPlayerNode = playerNode;
-  audioPlayerContext = playerCtx;
+function startSpeechReveal() {
+  let revealedLength = 0;
+  const charsPerSecond = 14;
+  const intervalMs = 1000 / charsPerSecond;
   
-  const [recorderNode, recorderCtx, stream] = await startAudioRecorderWorklet(audioRecorderHandler);
-  audioRecorderNode = recorderNode;
-  audioRecorderContext = recorderCtx;
-  micStream = stream;
-  
-  console.log('[AUDIO] Audio worklets started');
+  speechRevealInterval = setInterval(() => {
+    if (revealedLength < speechBuffer.length) {
+      revealedLength++;
+      const revealed = speechBuffer.substring(0, revealedLength);
+      if (currentOutputTranscriptionElement) {
+        updateBubble(currentOutputTranscriptionElement, revealed, true);
+      }
+    } else {
+      clearInterval(speechRevealInterval);
+      speechRevealInterval = null;
+    }
+  }, intervalMs);
+}
+
+function updateButtonStates() {
+  if (isRecording) {
+    inputEl.disabled = true;
+    
+    if (currentVoiceMode === 'microphone') {
+      micBtn.title = 'Click to stop';
+      voiceBtn.disabled = true;
+      voiceBtn.title = 'Stop microphone first';
+      sendBtn.disabled = true;
+      sendBtn.title = 'Stop recording first';
+    } else if (currentVoiceMode === 'voice') {
+      voiceBtn.title = 'Click to stop';
+      micBtn.disabled = true;
+      micBtn.title = 'Stop voice first';
+      sendBtn.disabled = true;
+      sendBtn.title = 'Stop recording first';
+    }
+  } else {
+    inputEl.disabled = false;
+    micBtn.disabled = false;
+    micBtn.title = 'Speech to text';
+    voiceBtn.disabled = false;
+    voiceBtn.title = 'Voice conversation';
+    sendBtn.disabled = false;
+    sendBtn.title = 'Send message';
+  }
 }
 
 function audioRecorderHandler(pcmData) {
-  if (websocket && websocket.readyState === WebSocket.OPEN && audioMode) {
+  if (websocket && websocket.readyState === WebSocket.OPEN && isRecording) {
     websocket.send(pcmData);
   }
 }
@@ -228,7 +285,7 @@ function connectWebsocket() {
   
   websocket.onmessage = function(event) {
     const adkEvent = JSON.parse(event.data);
-    console.log("[SERVER]", adkEvent);
+    console.log("[SERVER]", JSON.stringify(adkEvent, null, 2));
     
     handleADKEvent(adkEvent);
   };
@@ -249,6 +306,14 @@ function connectWebsocket() {
 function handleADKEvent(event) {
   // Turn complete - reset state
   if (event.turnComplete) {
+    if (typingIndicator) {
+      typingIndicator.remove();
+      typingIndicator = null;
+    }
+    if (speechRevealInterval) {
+      clearInterval(speechRevealInterval);
+      speechRevealInterval = null;
+    }
     if (currentBubbleElement) {
       updateBubble(currentBubbleElement, currentBubbleElement.querySelector('.bubble').textContent, false);
     }
@@ -259,15 +324,24 @@ function handleADKEvent(event) {
     currentBubbleElement = null;
     currentInputTranscriptionElement = null;
     currentOutputTranscriptionElement = null;
+    isAgentSpeaking = false;
+    lastUsedMode = null;
+    speechBuffer = '';
     
-    if (voiceState === 'speaking') {
-      setVoiceState('listening');
-    }
+    setStatus('ready');
     return;
   }
   
   // Interrupted - cleanup
   if (event.interrupted) {
+    if (typingIndicator) {
+      typingIndicator.remove();
+      typingIndicator = null;
+    }
+    if (speechRevealInterval) {
+      clearInterval(speechRevealInterval);
+      speechRevealInterval = null;
+    }
     if (audioPlayerNode) {
       audioPlayerNode.port.postMessage({ command: "endOfAudio" });
     }
@@ -275,60 +349,100 @@ function handleADKEvent(event) {
     currentBubbleElement = null;
     currentInputTranscriptionElement = null;
     currentOutputTranscriptionElement = null;
+    isAgentSpeaking = false;
+    lastUsedMode = null;
+    speechBuffer = '';
     
-    if (voiceState === 'speaking') {
-      setVoiceState('listening');
-    }
+    setStatus('ready');
     return;
   }
   
-  // Input transcription (user speaking)
+  // Input transcription (user speaking) - stream to textarea
   if (event.inputTranscription && event.inputTranscription.text) {
     const text = event.inputTranscription.text;
     const isFinished = event.inputTranscription.finished;
     
-    if (!currentInputTranscriptionElement) {
-      currentInputTranscriptionElement = appendMessage('user', text, !isFinished);
-    } else {
-      updateBubble(currentInputTranscriptionElement, text, !isFinished);
-    }
+    // Stream transcription into textarea
+    inputEl.value = text;
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
     
+    // When finished, show as user message and auto-send
     if (isFinished) {
-      currentInputTranscriptionElement = null;
+      stopRecording();
+      clearEmpty();
+      appendMessage('user', text);
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      // Note: Already sent to backend via audio stream, no need to send again
     }
     return;
   }
   
   // Output transcription (agent speaking)
   if (event.outputTranscription && event.outputTranscription.text) {
+    if (typingIndicator) {
+      typingIndicator.remove();
+      typingIndicator = null;
+    }
+    
     const text = event.outputTranscription.text;
     const isFinished = event.outputTranscription.finished;
     
-    if (voiceState === 'listening') {
-      setVoiceState('speaking');
-    }
+    isAgentSpeaking = true;
+    setStatus('agent speaking…');
     
-    if (!currentOutputTranscriptionElement) {
-      currentOutputTranscriptionElement = appendMessage('bot', text, !isFinished);
+    // Voice mode: sync text reveal with audio playback
+    if (lastUsedMode === 'voice') {
+      speechBuffer = text;
+      
+      if (!currentOutputTranscriptionElement) {
+        currentOutputTranscriptionElement = appendMessage('bot', '', true);
+        startSpeechReveal();
+      }
+      
+      if (isFinished) {
+        if (speechRevealInterval) {
+          clearInterval(speechRevealInterval);
+          speechRevealInterval = null;
+        }
+        updateBubble(currentOutputTranscriptionElement, speechBuffer, false);
+        currentOutputTranscriptionElement = null;
+        speechBuffer = '';
+        isAgentSpeaking = false;
+        setStatus('ready');
+      }
     } else {
-      updateBubble(currentOutputTranscriptionElement, text, !isFinished);
-    }
-    
-    if (isFinished) {
-      currentOutputTranscriptionElement = null;
+      // Text/microphone mode: show text immediately
+      if (!currentOutputTranscriptionElement) {
+        currentOutputTranscriptionElement = appendMessage('bot', text, !isFinished);
+      } else {
+        updateBubble(currentOutputTranscriptionElement, text, !isFinished);
+      }
+      
+      if (isFinished) {
+        currentOutputTranscriptionElement = null;
+        isAgentSpeaking = false;
+        setStatus('ready');
+      }
     }
     return;
   }
   
   // Content events
   if (event.content && event.content.parts) {
+    if (typingIndicator) {
+      typingIndicator.remove();
+      typingIndicator = null;
+    }
+    
     for (const part of event.content.parts) {
-      // Audio data
+      // Audio data (only play in voice mode, not microphone mode)
       if (part.inlineData) {
         const mimeType = part.inlineData.mimeType;
         const data = part.inlineData.data;
         
-        if (mimeType && mimeType.startsWith("audio/pcm") && audioPlayerNode) {
+        if (mimeType && mimeType.startsWith("audio/pcm") && audioPlayerNode && lastUsedMode === 'voice') {
           audioPlayerNode.port.postMessage(base64ToArray(data));
         }
       }
@@ -364,5 +478,5 @@ function base64ToArray(base64) {
 }
 
 // Initialize
-setMode('text');
 connectWebsocket();
+inputEl.focus();
