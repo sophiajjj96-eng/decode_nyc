@@ -100,7 +100,7 @@ Auto-configured by Cloud Build:
 | `GOOGLE_GENAI_USE_VERTEXAI` | TRUE |
 | `GOOGLE_CLOUD_PROJECT` | $PROJECT_ID |
 | `GOOGLE_CLOUD_LOCATION` | us-central1 |
-| `DEMO_AGENT_MODEL` | gemini-2.5-flash-native-audio |
+| `DEMO_AGENT_MODEL` | gemini-live-2.5-flash-native-audio |
 | `DATASET_URL` | https://data.cityofnewyork.us/resource/jaw4-yuem.json |
 | `PORT` | 8080 (set by Cloud Run) |
 

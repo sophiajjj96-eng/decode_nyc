@@ -77,7 +77,7 @@ We use two Gemini models optimized for different workloads:
 **How we use it:** Primary model for real-time voice conversations through ADK agent framework. Accessed via Vertex AI in production or AI Studio API for local development.
 
 **Configuration:**
-- Model ID: `gemini-2.5-flash-native-audio`
+- Model ID: `gemini-live-2.5-flash-native-audio`
 - Response modality: AUDIO (with transcription)
 - Streaming mode: BIDI (bidirectional)
 - Optional features: proactivity, affective dialog
@@ -196,7 +196,7 @@ We use two Gemini models optimized for different workloads:
 --timeout=3600
 --max-instances=10
 --service-account=algorithm-explained-sa@PROJECT_ID.iam.gserviceaccount.com
---set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio,ENABLE_IMAGE_GEN=TRUE
+--set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,DEMO_AGENT_MODEL=gemini-live-2.5-flash-native-audio,ENABLE_IMAGE_GEN=TRUE
 ```
 
 **Alternatives considered:**
@@ -222,7 +222,7 @@ We use two Gemini models optimized for different workloads:
 - `GOOGLE_GENAI_USE_VERTEXAI=TRUE`
 - `GOOGLE_CLOUD_PROJECT=$PROJECT_ID`
 - `GOOGLE_CLOUD_LOCATION=us-central1`
-- `DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio`
+- `DEMO_AGENT_MODEL=gemini-live-2.5-flash-native-audio`
 - `ENABLE_IMAGE_GEN=TRUE`
 
 **Build Configuration:**
@@ -320,7 +320,7 @@ The application supports two deployment modes with different Google AI authentic
 ```bash
 GOOGLE_API_KEY=your_api_key_here
 GOOGLE_GENAI_USE_VERTEXAI=FALSE
-DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio
+DEMO_AGENT_MODEL=gemini-live-2.5-flash-native-audio
 TEXT_MODEL=gemini-2.5-flash                    # Optional: model for auxiliary tasks
 ENABLE_IMAGE_GEN=TRUE                          # Optional: enable flowchart generation
 ```
@@ -340,7 +340,7 @@ ENABLE_IMAGE_GEN=TRUE                          # Optional: enable flowchart gene
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
-DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio
+DEMO_AGENT_MODEL=gemini-live-2.5-flash-native-audio
 TEXT_MODEL=gemini-2.5-flash                    # Optional: defaults to gemini-2.5-flash
 ENABLE_IMAGE_GEN=TRUE                          # Optional: enable flowchart generation
 ```
@@ -362,7 +362,7 @@ ENABLE_IMAGE_GEN=TRUE                          # Optional: enable flowchart gene
 ### Model Selection
 
 Both modes support the same models:
-- **Main agent**: `gemini-2.5-flash-native-audio` (voice conversations via ADK)
+- **Main agent**: `gemini-live-2.5-flash-native-audio` (voice conversations via ADK)
 - **Auxiliary text tasks**: Model specified by `TEXT_MODEL` env variable (defaults to `gemini-2.5-flash`)
   - Used for: follow-up question generation, intent classification
   - Accessed via `genai.Client`
