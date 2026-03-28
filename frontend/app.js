@@ -18,8 +18,9 @@ let empty = document.getElementById('empty');
 
 // WebSocket state
 const userId = "civic-user";
-const sessionId = "session-" + Math.random().toString(36).substring(7);
+let sessionId = "session-" + Math.random().toString(36).substring(7);
 let websocket = null;
+let welcomeReceived = false;
 
 // Audio state
 let audioPlayerNode = null;
@@ -34,6 +35,7 @@ let audioPlayerInitialized = false;
 let isRecording = false;
 let currentVoiceMode = null; // 'microphone' or 'voice'
 let lastUsedMode = null; // Persists for the turn
+let inVoiceSession = false; // Persistent across turns for continuous voice conversation
 
 // Message tracking
 let currentMessageId = null;
@@ -57,6 +59,7 @@ function setStatus(s) {
     'ready': 'green',
     'connected': 'green',
     'audio initialized': 'green',
+    'audio mode active': 'green',
     'listening…': 'orange',
     'agent speaking…': 'orange',
     'reconnecting…': 'orange',
@@ -126,7 +129,54 @@ function sendMessage(text) {
 
 // Voice handlers
 micBtn.addEventListener('click', () => handleVoiceClick('microphone'));
-voiceBtn.addEventListener('click', () => handleVoiceClick('voice'));
+voiceBtn.addEventListener('click', () => handleVoiceToggle());
+
+async function handleVoiceToggle() {
+  if (inVoiceSession) {
+    // End voice session
+    endVoiceSession();
+  } else {
+    // Start voice session (initialize audio without recording)
+    await startVoiceSession();
+  }
+}
+
+async function startVoiceSession() {
+  clearEmpty();
+  inVoiceSession = true;
+  lastUsedMode = 'voice';
+  
+  try {
+    // Initialize audio player for output
+    if (!audioPlayerInitialized) {
+      const [playerNode, playerCtx] = await startAudioPlayerWorklet();
+      audioPlayerNode = playerNode;
+      audioPlayerContext = playerCtx;
+      audioPlayerInitialized = true;
+      console.log('[AUDIO] Audio player initialized for voice session');
+    }
+    
+    // Initialize audio recorder for input
+    if (!audioRecorderInitialized) {
+      const [recorderNode, recorderCtx, stream] = await startAudioRecorderWorklet(audioRecorderHandler);
+      audioRecorderNode = recorderNode;
+      audioRecorderContext = recorderCtx;
+      micStream = stream;
+      audioRecorderInitialized = true;
+      console.log('[AUDIO] Audio recorder initialized for voice session');
+    }
+    
+    voiceBtn.classList.remove('idle');
+    voiceBtn.classList.add('active');
+    setStatus('audio mode active');
+    console.log('[AUDIO] Voice session started - type or speak to get audio responses');
+  } catch (err) {
+    appendMessage('bot', 'Could not start audio. Please check microphone permissions.');
+    console.error('Audio initialization error:', err);
+    inVoiceSession = false;
+    return;
+  }
+}
 
 async function handleVoiceClick(mode) {
   if (currentVoiceMode && currentVoiceMode !== mode) return;
@@ -134,7 +184,12 @@ async function handleVoiceClick(mode) {
   if (!isRecording) {
     await startRecording(mode);
   } else {
-    stopRecording();
+    // Explicitly stopping - end voice session if active
+    if (inVoiceSession) {
+      endVoiceSession();
+    } else {
+      stopRecording();
+    }
   }
 }
 
@@ -175,9 +230,6 @@ async function startRecording(mode) {
   if (mode === 'microphone') {
     micBtn.classList.remove('idle');
     micBtn.classList.add('recording');
-  } else {
-    voiceBtn.classList.remove('idle');
-    voiceBtn.classList.add('recording');
   }
   
   voiceBars.classList.remove('hidden');
@@ -189,7 +241,7 @@ async function startRecording(mode) {
 
 function stopRecording() {
   isRecording = false;
-  currentVoiceMode = null; // Clear active recording, but keep lastUsedMode for response
+  currentVoiceMode = null;
   
   if (micStream) {
     stopMicrophone(micStream);
@@ -210,12 +262,57 @@ function stopRecording() {
   
   micBtn.classList.remove('recording');
   micBtn.classList.add('idle');
-  voiceBtn.classList.remove('recording');
+  
+  voiceBars.classList.add('hidden');
+  setStatus('ready');
+  updateButtonStates();
+}
+
+function endVoiceSession() {
+  inVoiceSession = false;
+  isRecording = false;
+  currentVoiceMode = null;
+  lastUsedMode = null;
+  
+  if (micStream) {
+    stopMicrophone(micStream);
+    micStream = null;
+  }
+  
+  if (audioRecorderNode) {
+    audioRecorderNode.disconnect();
+    audioRecorderNode = null;
+  }
+  
+  if (audioRecorderContext) {
+    audioRecorderContext.close();
+    audioRecorderContext = null;
+  }
+  
+  if (audioPlayerNode) {
+    audioPlayerNode.port.postMessage({ command: "endOfAudio" });
+    audioPlayerNode.disconnect();
+    audioPlayerNode = null;
+  }
+  
+  if (audioPlayerContext) {
+    audioPlayerContext.close();
+    audioPlayerContext = null;
+  }
+  
+  audioRecorderInitialized = false;
+  audioPlayerInitialized = false;
+  
+  micBtn.classList.remove('recording');
+  micBtn.classList.add('idle');
+  voiceBtn.classList.remove('active', 'recording');
   voiceBtn.classList.add('idle');
   
   voiceBars.classList.add('hidden');
   setStatus('ready');
   updateButtonStates();
+  
+  console.log('[AUDIO] Voice session ended, all audio contexts closed');
 }
 
 function startSpeechReveal() {
@@ -247,26 +344,29 @@ function updateButtonStates() {
       voiceBtn.title = 'Stop microphone first';
       sendBtn.disabled = true;
       sendBtn.title = 'Stop recording first';
-    } else if (currentVoiceMode === 'voice') {
-      voiceBtn.title = 'Click to stop';
-      micBtn.disabled = true;
-      micBtn.title = 'Stop voice first';
-      sendBtn.disabled = true;
-      sendBtn.title = 'Stop recording first';
     }
+  } else if (inVoiceSession) {
+    // Audio mode active but not recording
+    inputEl.disabled = false;
+    micBtn.disabled = false;
+    micBtn.title = 'Speech to text';
+    voiceBtn.disabled = false;
+    voiceBtn.title = 'Click to disable audio mode';
+    sendBtn.disabled = false;
+    sendBtn.title = 'Send message';
   } else {
     inputEl.disabled = false;
     micBtn.disabled = false;
     micBtn.title = 'Speech to text';
     voiceBtn.disabled = false;
-    voiceBtn.title = 'Voice conversation';
+    voiceBtn.title = 'Click to enable audio mode';
     sendBtn.disabled = false;
     sendBtn.title = 'Send message';
   }
 }
 
 function audioRecorderHandler(pcmData) {
-  if (websocket && websocket.readyState === WebSocket.OPEN && isRecording) {
+  if (websocket && websocket.readyState === WebSocket.OPEN && (isRecording || inVoiceSession)) {
     websocket.send(pcmData);
   }
 }
@@ -460,8 +560,9 @@ function connectWebsocket() {
 
 // Handle ADK events
 function handleADKEvent(event) {
-  // Handle welcome message
-  if (event.type === 'welcome') {
+  // Handle welcome message (only once per conversation)
+  if (event.type === 'welcome' && !welcomeReceived) {
+    welcomeReceived = true;
     clearEmpty();
     const welcomeRow = appendMessage('bot', event.message);
     if (event.prompts && event.prompts.length > 0) {
@@ -499,7 +600,8 @@ function handleADKEvent(event) {
       updateBubble(currentOutputTranscriptionElement, currentOutputTranscriptionElement.querySelector('.bubble').textContent, false);
     }
     
-    if (isRecording) {
+    // Only stop recording for microphone mode, not voice mode
+    if (isRecording && !inVoiceSession) {
       stopRecording();
     }
     
@@ -508,10 +610,15 @@ function handleADKEvent(event) {
     currentInputTranscriptionElement = null;
     currentOutputTranscriptionElement = null;
     isAgentSpeaking = false;
-    lastUsedMode = null;
+    // Don't reset lastUsedMode - keep it for the session
     speechBuffer = '';
     
-    setStatus('ready');
+    // Update status based on session state
+    if (inVoiceSession) {
+      setStatus('audio mode active');
+    } else {
+      setStatus('ready');
+    }
     return;
   }
   
@@ -529,7 +636,8 @@ function handleADKEvent(event) {
       audioPlayerNode.port.postMessage({ command: "endOfAudio" });
     }
     
-    if (isRecording) {
+    // Only stop recording for microphone mode, not voice mode
+    if (isRecording && !inVoiceSession) {
       stopRecording();
     }
     
@@ -538,10 +646,15 @@ function handleADKEvent(event) {
     currentInputTranscriptionElement = null;
     currentOutputTranscriptionElement = null;
     isAgentSpeaking = false;
-    lastUsedMode = null;
+    // Don't reset lastUsedMode - keep it for the session
     speechBuffer = '';
     
-    setStatus('ready');
+    // Update status based on session state
+    if (inVoiceSession) {
+      setStatus('audio mode active');
+    } else {
+      setStatus('ready');
+    }
     return;
   }
   
@@ -557,7 +670,10 @@ function handleADKEvent(event) {
     
     // When finished, show as user message and track in history
     if (isFinished) {
-      stopRecording();
+      // Only stop recording for microphone mode, not voice mode (continuous conversation)
+      if (currentVoiceMode === 'microphone') {
+        stopRecording();
+      }
       clearEmpty();
       appendMessage('user', text);
       
@@ -585,7 +701,7 @@ function handleADKEvent(event) {
     setStatus('agent speaking…');
     
     // Voice mode: sync text reveal with audio playback
-    if (lastUsedMode === 'voice') {
+    if (inVoiceSession) {
       speechBuffer = text;
       
       if (!currentOutputTranscriptionElement) {
@@ -637,7 +753,7 @@ function handleADKEvent(event) {
         const data = part.inlineData.data;
         
         // Handle audio playback
-        if (mimeType && mimeType.startsWith("audio/pcm") && audioPlayerNode && lastUsedMode === 'voice') {
+        if (mimeType && mimeType.startsWith("audio/pcm") && audioPlayerNode && inVoiceSession) {
           audioPlayerNode.port.postMessage(base64ToArray(data));
         }
         
@@ -849,6 +965,63 @@ async function submitBiasReport() {
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+// ========================================
+// New Conversation
+// ========================================
+
+const newConversationBtn = document.getElementById('new-conversation-btn');
+newConversationBtn.addEventListener('click', resetConversation);
+
+function resetConversation() {
+  // Close existing websocket if open
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.close();
+  }
+  
+  // End voice session if active
+  if (inVoiceSession) {
+    endVoiceSession();
+  }
+  
+  // Stop recording if active
+  if (isRecording) {
+    stopRecording();
+  }
+  
+  // Clear chat UI
+  chat.innerHTML = '<div class="empty" id="empty"><p>Find out how NYC\'s algorithms affect you</p></div>';
+  empty = document.getElementById('empty');
+  
+  // Reset all conversation state
+  conversationHistory = [];
+  lastOptions = [];
+  currentTopic = null;
+  currentSubtopic = null;
+  clarificationDepth = 0;
+  welcomeReceived = false;
+  
+  // Reset message tracking state
+  currentMessageId = null;
+  currentBubbleElement = null;
+  currentInputTranscriptionElement = null;
+  currentOutputTranscriptionElement = null;
+  isAgentSpeaking = false;
+  typingIndicator = null;
+  speechBuffer = '';
+  if (speechRevealInterval) {
+    clearInterval(speechRevealInterval);
+    speechRevealInterval = null;
+  }
+  
+  // Generate new session ID
+  sessionId = "session-" + Math.random().toString(36).substring(7);
+  
+  // Reconnect with new session
+  connectWebsocket();
+  
+  console.log('[CONVERSATION] Reset to new conversation with sessionId:', sessionId);
 }
 
 // ========================================

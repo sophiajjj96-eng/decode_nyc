@@ -79,6 +79,44 @@ header h1 {
   50% { opacity: 0.6; }
 }
 
+/* ── Header Actions ── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  width: 36px; 
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, transform 0.1s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.header-btn:hover {
+  background: var(--accent);
+  color: var(--text-dark);
+  border-color: var(--accent-border);
+  box-shadow: 0 2px 8px rgba(212, 233, 247, 0.4);
+}
+
+.header-btn:active {
+  transform: scale(0.95);
+}
+
+.header-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* ── Flag for Bias Button ── */
 .flag-bias-btn {
   width: 36px; 
@@ -327,17 +365,25 @@ footer {
   height: 16px; 
 }
 
-/* ── Recording state (ice blue glow, pulsing, clickable to stop) ── */
-#mic-btn.recording, #voice-btn.recording {
-  background: var(--accent);
-  color: var(--text-dark);
-  border-color: var(--accent-border);
-  animation: pulse 1.5s ease-in-out infinite;
+/* ── Recording state (red glow, pulsing, clickable to stop) ── */
+#mic-btn.recording {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #b91c1c;
+  animation: pulse-red 1.5s ease-in-out infinite;
 }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(212, 233, 247, 0.5); }
-  50% { transform: scale(1.08); box-shadow: 0 0 24px rgba(212, 233, 247, 0.8), 0 0 48px rgba(212, 233, 247, 0.4); }
+/* ── Active audio mode (steady red glow, clickable to toggle) ── */
+#voice-btn.active {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #b91c1c;
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.5);
+}
+
+@keyframes pulse-red {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(220, 38, 38, 0.5); }
+  50% { transform: scale(1.08); box-shadow: 0 0 24px rgba(220, 38, 38, 0.8), 0 0 48px rgba(220, 38, 38, 0.4); }
 }
 
 /* ── Send button ── */
