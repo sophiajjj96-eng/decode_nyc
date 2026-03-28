@@ -162,6 +162,23 @@ function stopRecording() {
   isRecording = false;
   currentVoiceMode = null; // Clear active recording, but keep lastUsedMode for response
   
+  if (micStream) {
+    stopMicrophone(micStream);
+    micStream = null;
+  }
+  
+  if (audioRecorderNode) {
+    audioRecorderNode.disconnect();
+    audioRecorderNode = null;
+  }
+  
+  if (audioRecorderContext) {
+    audioRecorderContext.close();
+    audioRecorderContext = null;
+  }
+  
+  audioRecorderInitialized = false;
+  
   micBtn.classList.remove('recording');
   micBtn.classList.add('idle');
   voiceBtn.classList.remove('recording');
@@ -320,6 +337,11 @@ function handleADKEvent(event) {
     if (currentOutputTranscriptionElement) {
       updateBubble(currentOutputTranscriptionElement, currentOutputTranscriptionElement.querySelector('.bubble').textContent, false);
     }
+    
+    if (isRecording) {
+      stopRecording();
+    }
+    
     currentMessageId = null;
     currentBubbleElement = null;
     currentInputTranscriptionElement = null;
@@ -345,6 +367,11 @@ function handleADKEvent(event) {
     if (audioPlayerNode) {
       audioPlayerNode.port.postMessage({ command: "endOfAudio" });
     }
+    
+    if (isRecording) {
+      stopRecording();
+    }
+    
     currentMessageId = null;
     currentBubbleElement = null;
     currentInputTranscriptionElement = null;
