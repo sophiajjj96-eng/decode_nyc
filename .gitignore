@@ -2,9 +2,19 @@
 backend/venv/
 backend/__pycache__/
 *.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.uv/
 
 # Secrets
 backend/.env
+.env
+
+# UV workspace
+.venv/
+.python-version
 
 # macOS
 .DS_Store
