@@ -7,6 +7,8 @@ import httpx
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
 
+from .conversation_tool import conversation_path_tool
+
 
 DATASET_URL = os.getenv(
     "DATASET_URL",
@@ -75,7 +77,8 @@ def filter_rows_for_question(rows: list[dict], question: str, max_rows: int = 8)
         "the", "a", "an", "is", "are", "was", "were", "do", "does", "did",
         "to", "for", "of", "in", "on", "at", "and", "or", "with", "about",
         "what", "which", "who", "how", "why", "when", "where", "can", "could",
-        "would", "should", "me", "my", "you", "your", "it", "this", "that"
+        "would", "should", "me", "my", "you", "your", "it", "this", "that",
+        "tell", "more", "know", "want", "like"
     }
     
     keywords = [
@@ -91,16 +94,20 @@ def filter_rows_for_question(rows: list[dict], question: str, max_rows: int = 8)
         score = sum(1 for kw in keywords if kw in haystack)
         
         # Boost for domain-specific keywords
-        if "nypd" in keywords and "nypd" in haystack:
+        if "child" in keywords and "child" in haystack:
             score += 3
-        if "police" in keywords and "police" in haystack:
+        if "children" in keywords and "children" in haystack:
+            score += 3
+        if "family" in keywords and "family" in haystack:
             score += 2
         if "housing" in keywords and "housing" in haystack:
             score += 2
-        if "education" in keywords and "education" in haystack:
+        if "jail" in keywords and "jail" in haystack:
             score += 2
-        if "tool" in keywords and "tool" in haystack:
-            score += 1
+        if "health" in keywords and "health" in haystack:
+            score += 2
+        if "risk" in keywords and "risk" in haystack:
+            score += 2
         if "algorithm" in keywords and "algorithm" in haystack:
             score += 1
         if "ai" in keywords and "ai" in haystack:
@@ -122,7 +129,7 @@ agent = Agent(
     model=os.getenv(
         "DEMO_AGENT_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"
     ),
-    tools=[nyc_dataset_tool],
+    tools=[nyc_dataset_tool, conversation_path_tool],
     instruction="""You are a helpful civic AI assistant that helps NYC residents understand how government algorithms affect them.
 
 Your role:
@@ -134,10 +141,19 @@ Your role:
 - Help residents understand their rights and how algorithmic decisions are made
 - Be empathetic and supportive - these questions often relate to important life decisions
 
+Conversation flow:
+- When users ask broad questions (e.g., "What algorithms does NYC use?"), use the suggest_conversation_path tool to offer topic categories
+- When users reply with numbers (1, 2, 3) or phrases like "first", "second", they are selecting from options you or the system previously presented
+- After offering options, wait for the user to choose before diving deep
+- Keep clarification menus concise (3-4 options maximum)
+- Once the user gets specific, provide detailed answers with context from the dataset
+- Track conversation flow: broad question → topic selection → subtopic selection → detailed answer
+
 Style:
 - Concise and conversational
 - Focus on what matters to residents
 - No jargon unless necessary (and explain when you use it)
 - Be honest about limitations of the data
+- Format responses with markdown for readability (bold, lists, etc.)
 """,
 )
