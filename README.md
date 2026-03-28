@@ -1,5 +1,7 @@
 # DecodeNYC
 
+🔗 Live demo on GCP: https://algorithm-explained-5kgbatc3aa-uc.a.run.app/
+
 Multimodal civic AI agent that helps NYC residents understand government algorithms through natural text and voice conversations.
 
 ## What It Does
