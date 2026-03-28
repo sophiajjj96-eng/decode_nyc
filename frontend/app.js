@@ -4,6 +4,7 @@
 
 import { startAudioPlayerWorklet } from "./audio-player.js";
 import { startAudioRecorderWorklet, stopMicrophone } from "./audio-recorder.js";
+import { injectFlowchartIfNeeded } from "./flowchart-display.js";
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -350,10 +351,47 @@ function renderAssistantResponse(text) {
         currentTopic = 'Child welfare and family services';
       }
     }
+    
+    // Add clickable follow-up buttons if this looks like a follow-up question list
+    if (currentBubbleElement && (lowerText.includes('follow-up') || lowerText.includes('question') || matches.length <= 5)) {
+      setTimeout(() => {
+        addFollowUpButtons(currentBubbleElement, lastOptions);
+      }, 300);
+    }
   } else {
     // Reset depth when getting specific answer
     clarificationDepth = 0;
   }
+  
+  // Detect algorithm explanations and inject flowchart
+  if (currentBubbleElement) {
+    setTimeout(() => {
+      injectFlowchartIfNeeded(currentBubbleElement, text);
+    }, 500);
+  }
+}
+
+function addFollowUpButtons(messageElement, questions) {
+  // Check if buttons already exist
+  if (messageElement.querySelector('.category-buttons')) {
+    return;
+  }
+  
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.className = 'category-buttons';
+  
+  questions.forEach((question, idx) => {
+    const button = document.createElement('button');
+    button.className = 'category-btn';
+    button.textContent = question;
+    button.onclick = () => {
+      inputEl.value = question;
+      submitText();
+    };
+    buttonsContainer.appendChild(button);
+  });
+  
+  messageElement.appendChild(buttonsContainer);
 }
 
 function showTyping() {
@@ -598,8 +636,22 @@ function handleADKEvent(event) {
         const mimeType = part.inlineData.mimeType;
         const data = part.inlineData.data;
         
+        // Handle audio playback
         if (mimeType && mimeType.startsWith("audio/pcm") && audioPlayerNode && lastUsedMode === 'voice') {
           audioPlayerNode.port.postMessage(base64ToArray(data));
+        }
+        
+        // Handle image display
+        if (mimeType && mimeType.startsWith("image/")) {
+          if (!currentBubbleElement) {
+            currentMessageId = Math.random().toString(36).substring(7);
+            currentBubbleElement = appendMessage('bot', '', true);
+          }
+          
+          const imageContainer = document.createElement('div');
+          imageContainer.className = 'algorithm-image';
+          imageContainer.innerHTML = `<img src="data:${mimeType};base64,${data}" alt="Algorithm visualization" />`;
+          currentBubbleElement.querySelector('.bubble').appendChild(imageContainer);
         }
       }
       

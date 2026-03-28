@@ -1,0 +1,137 @@
+[
+  {
+    "id": "homebase_raq",
+    "name": "Homebase Risk Assessment Questionnaire",
+    "agency": "Department of Homeless Services",
+    "trigger_keywords": ["shelter", "homeless", "eviction", "housing", "apartment", "lose my home", "homebase"],
+    "plain_summary": "Scores households on 20+ factors to decide who gets homelessness prevention services.",
+    "how_it_works": "Applicants answer questions about housing history, income, family size, and prior DHS contact. The algorithm produces a risk score. Staff use that score to decide eligibility.",
+    "inputs": [
+      "prior DHS contact",
+      "length of current housing",
+      "income",
+      "employment status",
+      "family size",
+      "reason for housing loss"
+    ],
+    "key_weights": {
+      "prior_dhs_contact": "high",
+      "housing_length": "high",
+      "income": "medium",
+      "family_size": "medium"
+    },
+    "outputs": "Risk score → recommendation for or against services",
+    "date_first_used": "2012-06",
+    "fairness_concerns": [
+      "Prior DHS contact lowers your score — penalizes people for having needed help before",
+      "No public documentation on exact scoring thresholds",
+      "Limited formal appeal process if score is too low",
+      "Trained on historical DHS data from 2012 — embeds past patterns of denial"
+    ],
+    "what_you_can_do": [
+      "Apply to Homebase anyway — a caseworker can advocate even with a low score",
+      "Contact Legal Aid Society for eviction protection",
+      "Call 311 for Emergency Rental Assistance (does not use RAQ score)"
+    ],
+    "storytelling_prompts": {
+      "high_risk": "Your situation shows you're at high risk of homelessness. The algorithm looks at how long you've been in your current place and whether you've needed help before. This means you should qualify for prevention services.",
+      "prior_contact_penalty": "Because you've used DHS services before, the system actually lowers your score. This is a known fairness issue — the algorithm penalizes people for having needed help in the past.",
+      "income_factor": "Your income level is one of the factors the algorithm considers. It's weighted as 'medium importance' in the scoring formula.",
+      "family_size_factor": "Your family size affects your score. Larger families typically score differently because housing needs vary."
+    }
+  },
+  {
+    "id": "myschools",
+    "name": "MySchools — Gale-Shapley Matching Algorithm",
+    "agency": "NYC Public Schools",
+    "trigger_keywords": ["school", "school assignment", "my kid", "high school", "application", "waitlist", "myschools", "gale-shapley"],
+    "plain_summary": "Matches students to schools based on ranked preferences, seat availability, and student profiles.",
+    "how_it_works": "Uses the Gale-Shapley deferred acceptance algorithm. Students rank schools; schools rank students. The algorithm finds a stable match. In 2024, a 'Probability of Acceptance' feature was added.",
+    "inputs": [
+      "home address",
+      "poverty status",
+      "student biographical info",
+      "school rankings submitted by student",
+      "seat availability"
+    ],
+    "outputs": "School match for each student; probability of acceptance score (2024+)",
+    "date_first_used": "2018-08",
+    "fairness_concerns": [
+      "Home address is an input — students in lower-income neighborhoods may have fewer competitive options nearby",
+      "Probability of Acceptance score may discourage students from applying to certain schools",
+      "Algorithm logic is not fully public"
+    ],
+    "what_you_can_do": [
+      "Appeal through the NYC DOE appeals process within the deadline",
+      "Apply to specialized high schools separately (different process)",
+      "Contact your school district office for waitlist status"
+    ],
+    "storytelling_prompts": {
+      "address_impact": "Your home address is one of the factors the matching algorithm considers. Where you live affects which schools you have access to and how competitive your application is.",
+      "probability_score": "The system now shows a 'Probability of Acceptance' for each school. This helps you understand your chances but might also discourage applications to reach schools.",
+      "ranking_strategy": "The algorithm looks at how you ranked schools and how schools rank students. It finds the best stable match where no student and school would both prefer each other over their assigned match."
+    }
+  },
+  {
+    "id": "acs_repeat_maltreatment",
+    "name": "ACS Repeat Maltreatment Predictive Model",
+    "agency": "Administration for Children's Services",
+    "trigger_keywords": ["ACS", "child services", "flagged", "investigation", "family services", "child welfare"],
+    "plain_summary": "Predicts likelihood of future child maltreatment to prioritize ACS caseworker attention.",
+    "how_it_works": "Trained on historical ACS administrative data. Takes prior investigation history and family data as inputs. Outputs a ranked list of open cases for caseworker review.",
+    "inputs": [
+      "prior investigation history",
+      "administrative data about prior family involvement"
+    ],
+    "outputs": "Rank-ordered list of open investigation cases by predicted risk",
+    "date_first_used": "2017-07",
+    "identifying_info": true,
+    "fairness_concerns": [
+      "Prior ACS contact increases your risk score — same circular trap as Homebase",
+      "Trained on historical data that may embed racial and socioeconomic bias",
+      "Families may not know they are being scored",
+      "High-stakes decisions (family separation) influenced by a model"
+    ],
+    "what_you_can_do": [
+      "You have the right to know why ACS is investigating",
+      "You can request a fair hearing",
+      "Contact a family defense attorney — Legal Aid Society has a family defense practice"
+    ],
+    "storytelling_prompts": {
+      "prior_contact": "The system uses your family's prior contact with ACS to predict future risk. If you've been investigated before, your score is automatically higher — even if those investigations were unfounded.",
+      "training_bias": "This model learned from decades of ACS data. That means it may carry forward historical patterns of bias, particularly affecting low-income families and communities of color.",
+      "hidden_scoring": "Many families don't know they're being scored by this algorithm. The rankings help caseworkers prioritize which cases to focus on."
+    }
+  },
+  {
+    "id": "shotspotter",
+    "name": "ShotSpotter",
+    "agency": "New York Police Department",
+    "trigger_keywords": ["police", "cops", "neighborhood", "gunshot", "shotspotter", "surveillance", "patrol", "nypd"],
+    "plain_summary": "Acoustic gunshot detection system that triggers police dispatch based on audio signals.",
+    "how_it_works": "Microphones placed throughout neighborhoods analyze audio signals for potential gunshots. Algorithm determines location and triggers police dispatch. Training data is proprietary to vendor.",
+    "inputs": [
+      "audio signals from neighborhood microphones"
+    ],
+    "outputs": "Location of detected sound + police dispatch recommendation",
+    "date_first_used": "2015-03",
+    "vendor": "ShotSpotter (now SoundThinking)",
+    "vendor_desc": "Training data is proprietary to the vendor — neither residents nor city officials can audit it",
+    "fairness_concerns": [
+      "Sensor placement concentrated in specific neighborhoods — not evenly distributed citywide",
+      "Algorithm is a black box — vendor training data not disclosed",
+      "Known false positive rate: sounds that are not gunshots trigger police response",
+      "Disproportionate deployment in communities of color"
+    ],
+    "what_you_can_do": [
+      "File a complaint with the CCRB (Civilian Complaint Review Board) for wrongful police contact",
+      "Contact the Legal Aid Society if you were stopped or harassed",
+      "Attend Community Board meetings — sensor placement decisions go through community input"
+    ],
+    "storytelling_prompts": {
+      "deployment_pattern": "ShotSpotter sensors aren't distributed evenly across NYC. They're concentrated in specific neighborhoods, which means some communities experience much higher algorithmic surveillance than others.",
+      "false_positives": "The system sometimes mistakes other sounds for gunshots. When that happens, police are dispatched to your neighborhood based on an algorithm error.",
+      "vendor_secrecy": "Unlike other city algorithms, ShotSpotter's training data is completely secret. The vendor won't share how the algorithm was built or what data it learned from."
+    }
+  }
+]
