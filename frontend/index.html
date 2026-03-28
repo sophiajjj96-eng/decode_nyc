@@ -12,8 +12,14 @@
 <header>
   <div class="header-left">
     <h1>Audit the Algorithm</h1>
-    <span id="status-label">ready</span>
+    <span id="status-indicator" class="status-indicator"></span>
   </div>
+  <button id="flag-bias-btn" class="flag-bias-btn" title="Flag for bias">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+      <line x1="4" y1="22" x2="4" y2="15"/>
+    </svg>
+  </button>
 </header>
 
 <div id="chat">
@@ -50,6 +56,61 @@
     <div class="bar"></div><div class="bar"></div>
   </div>
 </footer>
+
+<!-- Bias Report Modal -->
+<div id="bias-modal" class="modal-overlay hidden">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h2>Flag for Bias</h2>
+      <button id="modal-close-btn" class="modal-close" title="Close">&times;</button>
+    </div>
+    
+    <div id="modal-form" class="modal-body">
+      <div class="form-field">
+        <label for="bias-title">Issue Summary</label>
+        <input type="text" id="bias-title" readonly placeholder="Generating..."/>
+      </div>
+      
+      <div class="form-field">
+        <label for="bias-email">Contact Email <span class="optional">(optional)</span></label>
+        <input type="email" id="bias-email" placeholder="your.email@example.com"/>
+      </div>
+      
+      <div class="form-field">
+        <label for="bias-body">Conversation Context</label>
+        <textarea id="bias-body" rows="4" readonly placeholder="Generating..."></textarea>
+      </div>
+      
+      <div class="form-field">
+        <label for="bias-explanation">Your Explanation</label>
+        <textarea id="bias-explanation" rows="4" placeholder="Describe the bias issue you observed..."></textarea>
+      </div>
+      
+      <div class="modal-actions">
+        <button id="discard-btn" class="btn-secondary">Discard</button>
+        <button id="submit-bias-btn" class="btn-primary">Submit</button>
+      </div>
+    </div>
+    
+    <div id="modal-thank-you" class="modal-body hidden">
+      <div class="thank-you-content">
+        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h3>Thank You</h3>
+        <p id="thank-you-summary"></p>
+        <p class="apology">We apologize for any inconvenience. This feedback is taken very seriously and valued.</p>
+        <p id="email-response" class="hidden">We'll respond to your email soon.</p>
+      </div>
+    </div>
+    
+    <div id="modal-loading" class="modal-loading hidden">
+      <div class="spinner"></div>
+      <p>Generating report context...</p>
+    </div>
+  </div>
+</div>
 
 <!-- script loaded as ES module for audio worklet imports -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
