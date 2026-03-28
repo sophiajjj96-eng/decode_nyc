@@ -70,7 +70,7 @@ graph TB
 
 ### Agent
 
-**Model:** `gemini-2.5-flash-native-audio-preview-12-2025`
+**Model:** `gemini-2.5-flash-native-audio`
 
 **Tools:** `query_nyc_dataset` (custom NYC data retrieval)
 
@@ -291,7 +291,7 @@ Speaker
 GOOGLE_API_KEY=your_key                    # Or use Vertex AI
 
 # Optional
-DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio-preview-12-2025
+DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio
 DATASET_URL=https://data.cityofnewyork.us/resource/jaw4-yuem.json
 
 # Vertex AI (production)

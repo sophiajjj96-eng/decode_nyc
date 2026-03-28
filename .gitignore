@@ -22,3 +22,6 @@ backend/.env
 # Node (future proof)
 node_modules/
 dist/
+
+# Data
+data/

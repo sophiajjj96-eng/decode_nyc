@@ -22,7 +22,7 @@ steps:
       - '--timeout=3600'
       - '--max-instances=10'
       - '--service-account=algorithm-explained-sa@$PROJECT_ID.iam.gserviceaccount.com'
-      - '--set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,DEMO_AGENT_MODEL=gemini-live-2.5-flash-native-audio'
+      - '--set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,DEMO_AGENT_MODEL=gemini-2.5-flash-native-audio'
 
 images:
   - 'gcr.io/$PROJECT_ID/algorithm-explained:$BUILD_ID'
