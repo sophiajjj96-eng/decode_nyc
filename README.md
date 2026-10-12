@@ -1,7 +1,12 @@
 # DecodeNYC
 
-🔗 Live demo on GCP: https://algorithm-explained-5kgbatc3aa-uc.a.run.app/
+## Project Status
 
+**Hackathon Prototype | March 2026**
+
+Decode NYC was developed as a functional AI prototype during the Google AI Hackathon at NYU Tandon.
+
+The live demo is no longer available following the expiration of its API access. The source code and technical documentation remain available in this repository.
 Multimodal civic AI agent that helps NYC residents understand government algorithms through natural text and voice conversations.
 
 ## What It Does
