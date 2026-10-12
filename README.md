@@ -1,13 +1,16 @@
 # DecodeNYC
 
+**Making NYC government algorithms understandable through conversational AI.**
+
+A multimodal civic AI agent that helps NYC residents understand government algorithms through natural text and voice conversations.
+
 ## Project Status
 
 **Hackathon Prototype | March 2026**
 
-Decode NYC was developed as a functional AI prototype during the Google AI Hackathon at NYU Tandon.
+Developed during the Google AI Hackathon at NYU Tandon, Decode NYC was built as a functional AI prototype integrating Gemini with official NYC algorithmic transparency data.
 
-The live demo is no longer available following the expiration of its API access. The source code and technical documentation remain available in this repository.
-Multimodal civic AI agent that helps NYC residents understand government algorithms through natural text and voice conversations.
+The live demo is no longer available following the expiration of its API access. Source code and technical documentation remain available in this repository.
 
 ## What It Does
 
